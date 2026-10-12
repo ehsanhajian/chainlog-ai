@@ -6,7 +6,7 @@ It reads the logs an operator already has — execution clients, consensus clien
 
 chainlog-ai does not restart a client, edit a manifest, scrape a cluster, or sign with a validator key.
 
-Work is tracked in [milestones](https://github.com/ehsanhajian/chainlog-ai/milestones). `ingest` writes a case on this machine. `why --case` accepts the id that `ingest` prints. Stating a cause comes later.
+Work is tracked in [milestones](https://github.com/ehsanhajian/chainlog-ai/milestones). `ingest` writes a case on this machine. `classify --case` labels events from the rule catalog and prints the counts. A line with no matching rule stays in the case, unclassified. Every rule cites a source. Classify does not call a model. `why --case` accepts the id that `ingest` prints. Stating a cause comes later.
 
 ## Command
 
@@ -55,6 +55,13 @@ chainlog-ai ingest \
   --kube examples/pods/ethereum_geth-0_poduid/geth/1.log
 cp examples/follow.log /tmp/follow.log
 chainlog-ai ingest --follow --case follow --execution /tmp/follow.log
+chainlog-ai ingest --case incident \
+  --execution examples/geth.log \
+  --consensus examples/beacon.log \
+  --validator examples/validator.log \
+  --builder examples/mev-boost.log \
+  --kube examples/events.json
+chainlog-ai classify --case incident
 chainlog-ai ingest --case 20261008T061200Z --execution examples/geth.log
 chainlog-ai why --case 20261008T061200Z
 chainlog-ai ask --case 20261008T061200Z "what happened in the slot before the miss?"

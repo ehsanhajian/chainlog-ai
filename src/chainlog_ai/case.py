@@ -42,6 +42,8 @@ class Event:
     reason: str | None = None
     restart: int | None = None
     generation: int = 0
+    failure_class: str | None = None
+    rule: str | None = None
 
     def identity(self) -> tuple[str, str, int, int, int]:
         return (self.source, self.path, self.byte_start, self.byte_end, self.generation)
@@ -63,6 +65,8 @@ class Event:
             "reason": self.reason,
             "restart": self.restart,
             "generation": self.generation,
+            "class": self.failure_class,
+            "rule": self.rule,
             "excerpt": self.excerpt,
         }
 
@@ -84,6 +88,8 @@ class Event:
         reason = data.get("reason")
         restart = data.get("restart")
         generation = data.get("generation", 0)
+        failure_class = data.get("class")
+        rule = data.get("rule")
         if not isinstance(source, str) or not isinstance(path, str) or not isinstance(excerpt, str):
             raise TypeError("event fields must be strings")
         if client is not None and not isinstance(client, str):
@@ -114,6 +120,10 @@ class Event:
             generation = 0
         if isinstance(generation, bool) or not isinstance(generation, int):
             raise TypeError("generation must be an integer")
+        if failure_class is not None and not isinstance(failure_class, str):
+            raise TypeError("class must be a string or null")
+        if rule is not None and not isinstance(rule, str):
+            raise TypeError("rule must be a string or null")
         return cls(
             source=source,
             client=client,
@@ -131,6 +141,8 @@ class Event:
             reason=reason,
             restart=restart,
             generation=generation,
+            failure_class=failure_class,
+            rule=rule,
         )
 
 

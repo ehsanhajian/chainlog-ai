@@ -7,6 +7,7 @@ import sys
 
 from chainlog_ai import __version__
 from chainlog_ai.case import CaseError, CaseNotFoundError, Event, load_case
+from chainlog_ai.classify import CatalogError, classify_case
 from chainlog_ai.ingest import SOURCES, InputError, ingest
 
 
@@ -183,6 +184,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="The preceding container log is the previous instance",
     )
 
+    classify_parser = commands.add_parser(
+        "classify",
+        help="Which failure classes are present?",
+        description=(
+            "Label events in a local case from the rule catalog and print the counts. "
+            "An event with no matching rule stays unclassified. Classify does not call a model."
+        ),
+    )
+    classify_parser.add_argument("--case", required=True, help="Case id printed by ingest")
+    classify_parser.add_argument(
+        "--catalog",
+        help="Rule catalog JSON. The built-in catalog is used when this is omitted.",
+    )
+    classify_parser.set_defaults(func=_cmd_classify)
+
     why_parser = commands.add_parser(
         "why",
         help="Why did it fail?",
@@ -245,6 +261,19 @@ def _cmd_ingest(args: argparse.Namespace) -> int:
         return 3
     if not announced:
         print(f"case {case_id}")
+    return 0
+
+
+def _cmd_classify(args: argparse.Namespace) -> int:
+    try:
+        text = classify_case(args.case, catalog=None if args.catalog is None else args.catalog)
+    except CaseNotFoundError as exc:
+        print(exc, file=sys.stderr)
+        return 3
+    except (CaseError, CatalogError) as exc:
+        print(exc, file=sys.stderr)
+        return 3
+    print(text)
     return 0
 
 

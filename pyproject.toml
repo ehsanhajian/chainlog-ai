@@ -47,7 +47,7 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-chainlog_ai = ["bip39_english.txt"]
+chainlog_ai = ["bip39_english.txt", "catalog.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

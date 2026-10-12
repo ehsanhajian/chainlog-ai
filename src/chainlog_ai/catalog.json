@@ -1,0 +1,51 @@
+[
+  {
+    "id": "geth-database-closed",
+    "client": "geth",
+    "match": "leveldb: closed",
+    "class": "database-closed",
+    "source": "https://github.com/syndtr/goleveldb/blob/master/leveldb/errors.go"
+  },
+  {
+    "id": "geth-engine-timeout",
+    "client": "geth",
+    "match": "Engine API newPayload.*context deadline exceeded",
+    "class": "engine-timeout",
+    "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/paris.md"
+  },
+  {
+    "id": "geth-jwt-rejected",
+    "client": "geth",
+    "match": "Invalid JWT token",
+    "class": "jwt-rejected",
+    "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/authentication.md"
+  },
+  {
+    "id": "lighthouse-engine-timeout",
+    "client": "lighthouse",
+    "match": "request to execution client timed out",
+    "class": "engine-timeout",
+    "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/paris.md"
+  },
+  {
+    "id": "lighthouse-missed-attestation",
+    "client": "lighthouse",
+    "match": "Missed attestation",
+    "class": "missed-attestation",
+    "source": "https://lighthouse-book.sigmaprime.io/faq.html"
+  },
+  {
+    "id": "kube-oom-killed",
+    "on": "kubernetes",
+    "match": "\\bOOMKilled\\b",
+    "class": "oom-killed",
+    "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
+  },
+  {
+    "id": "kube-probe-failed",
+    "on": "kubernetes",
+    "match": "\\bUnhealthy\\b",
+    "class": "probe-failed",
+    "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/"
+  }
+]
