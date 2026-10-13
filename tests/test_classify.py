@@ -101,6 +101,14 @@ def test_classify_counts_matches_and_keeps_unclassified_lines(home: Path) -> Non
     assert "builder-timeout 1" in stdout
     assert "oom-killed 1" in stdout
     assert "probe-failed 1" in stdout
+    assert "killed-externally 1" in stdout
+    assert "memory-pressure 1" in stdout
+    assert "cpu-pressure 1" in stdout
+    assert "disk-pressure 1" in stdout
+    assert "evicted 1" in stdout
+    assert "crash-loop 1" in stdout
+    assert "volume-mount-failed 1" in stdout
+    assert "node-not-ready 1" in stdout
     assert "unclassified " in stdout
     case = load_case("incident")
     closed = next(event for event in case.events if "leveldb: closed" in event.excerpt)
@@ -235,6 +243,63 @@ def test_consensus_and_validator_clients_cover_their_failures(home: Path, tmp_pa
     assert reorg.source == "kubernetes-previous"
     assert reorg.failure_class == "reorg"
     assert reorg.rule == "consensus-reorg"
+
+
+def test_kubernetes_events_name_the_cluster_cause(home: Path, tmp_path: Path) -> None:
+    root = Path(__file__).parents[1] / "examples" / "events.json"
+    code, _stdout, stderr = run("ingest", "--case", "kube", "--kube", str(root))
+    assert code == 0, stderr
+    code, stdout, stderr = run("classify", "--case", "kube")
+    assert code == 0, stderr
+    rules = {
+        "OOMKilled": "kube-oom-killed",
+        "Unhealthy": "kube-probe-failed",
+        "Killing": "kube-killed-externally",
+        "NodeHasInsufficientMemory": "kube-memory-pressure",
+        "Insufficient cpu": "kube-cpu-pressure",
+        "NodeHasDiskPressure": "kube-disk-pressure",
+        "Evicted": "kube-evicted",
+        "BackOff": "kube-crash-loop",
+        "FailedMount": "kube-volume-mount-failed",
+        "NodeNotReady": "kube-node-not-ready",
+    }
+    case = load_case("kube")
+    for phrase, rule_id in rules.items():
+        matched = next(event for event in case.events if phrase in event.excerpt)
+        assert matched.rule == rule_id, phrase
+        assert matched.failure_class is not None
+    assert "unclassified " in stdout
+    killing = next(event for event in case.events if event.reason == "Killing")
+    assert killing.failure_class == "killed-externally"
+
+    path = tmp_path / "0.log"
+    path.write_text(
+        "2026-10-08T06:13:55.000000000Z stderr F WARN Killing container from outside the client\n",
+        encoding="utf-8",
+    )
+    code, _stdout, stderr = run(
+        "ingest",
+        "--case",
+        "previous",
+        "--kube",
+        str(path),
+        "--namespace",
+        "ethereum",
+        "--pod",
+        "geth-0",
+        "--container",
+        "geth",
+        "--restart",
+        "0",
+        "--previous",
+    )
+    assert code == 0, stderr
+    code, _stdout, stderr = run("classify", "--case", "previous")
+    assert code == 0, stderr
+    previous = load_case("previous").events[0]
+    assert previous.source == "kubernetes-previous"
+    assert previous.failure_class == "killed-externally"
+    assert previous.rule == "kube-killed-externally"
 
 
 def test_unknown_case_and_bad_catalog_are_usage_errors(home: Path, tmp_path: Path) -> None:

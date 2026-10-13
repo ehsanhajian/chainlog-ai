@@ -101,6 +101,28 @@
         "kind": "Node",
         "name": "ethereum-1"
       }
+    },
+    {
+      "kind": "Event",
+      "reason": "NodeHasInsufficientMemory",
+      "message": "Node ethereum-1 status is now: NodeHasInsufficientMemory",
+      "type": "Warning",
+      "lastTimestamp": "2026-10-08T06:13:41Z",
+      "involvedObject": {
+        "kind": "Node",
+        "name": "ethereum-1"
+      }
+    },
+    {
+      "kind": "Event",
+      "reason": "NodeNotReady",
+      "message": "Node ethereum-1 status is now: NodeNotReady",
+      "type": "Warning",
+      "lastTimestamp": "2026-10-08T06:13:42Z",
+      "involvedObject": {
+        "kind": "Node",
+        "name": "ethereum-1"
+      }
     }
   ]
 }

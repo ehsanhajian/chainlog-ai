@@ -30,7 +30,7 @@ Work is tracked in [milestones](https://github.com/ehsanhajian/chainlog-ai/miles
 
 `examples/validator.log` is the Lighthouse validator client. `examples/prysm-validator.log`, `examples/teku-validator.log`, `examples/nimbus-validator.log`, and `examples/lodestar-validator.log` are the other validator clients. `examples/web3signer.log` stays on the validator source, including a signing failure, a signer timeout, a signer refusal, and doppelganger detection. `examples/mev-boost.log` stays on the builder source, including a relay timeout and a builder timeout. `--validator-client` and `--builder-client` name the client when the banner is absent. `classify` names these from the consensus and validator rules, and each rule cites a public source.
 
-`examples/events.json` is a Kubernetes events document. Each event keeps its pod, container, namespace, and reason, including OOMKilled, Killing, BackOff, Unhealthy, Evicted, FailedMount, node disk pressure, and FailedScheduling. `examples/pods/ethereum_geth-0_poduid/geth/0.log` is the previous container and `1.log` is the current one. The restart count comes from the file name. The previous container is stored as its own source. A Geth line inside the pod is recorded as `geth`, and the pod name stays with it. `--namespace`, `--pod`, `--container`, `--restart`, and `--previous` name the container when the path is not a kubelet log path.
+`examples/events.json` is a Kubernetes events document. Each event keeps its pod, container, namespace, and reason, including OOMKilled, Killing, BackOff, Unhealthy, Evicted, FailedMount, node memory and disk pressure, node not ready, and FailedScheduling for insufficient CPU. `classify` names those causes. Killing means the process was stopped from outside the client. `examples/pods/ethereum_geth-0_poduid/geth/0.log` is the previous container and `1.log` is the current one. The restart count comes from the file name. The previous container is stored as its own source. A Geth line inside the pod is recorded as `geth`, and the pod name stays with it. `--namespace`, `--pod`, `--container`, `--restart`, and `--previous` name the container when the path is not a kubelet log path.
 
 `examples/follow.log` is a short local log. `--follow` prints the case id, then each new line, and keeps reading until the command is stopped. A later ingest of the same case continues from the stored offset for each file. Replacing the file, so it has a new inode, starts again, and the case records the rotation.
 
@@ -69,6 +69,8 @@ chainlog-ai ingest --case consensus-rules \
   --validator examples/validator.log \
   --builder examples/mev-boost.log
 chainlog-ai classify --case consensus-rules
+chainlog-ai ingest --case kube-rules --kube examples/events.json
+chainlog-ai classify --case kube-rules
 chainlog-ai ingest --case 20261008T061200Z --execution examples/geth.log
 chainlog-ai why --case 20261008T061200Z
 chainlog-ai ask --case 20261008T061200Z "what happened in the slot before the miss?"

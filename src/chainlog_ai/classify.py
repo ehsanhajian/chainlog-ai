@@ -46,7 +46,7 @@ _CLIENTS = {
 
 
 def _source_matches(source: str, event: Event) -> bool:
-    if event.source == source:
+    if event.source == source or (source == "kubernetes" and event.source == "kubernetes-previous"):
         return True
     if source == "execution" and event.client in EXECUTION_CLIENTS:
         return True

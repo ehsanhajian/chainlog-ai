@@ -320,5 +320,61 @@
     "match": "\\bUnhealthy\\b",
     "class": "probe-failed",
     "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/"
+  },
+  {
+    "id": "kube-killed-externally",
+    "on": "kubernetes",
+    "match": "\\bKilling\\b",
+    "class": "killed-externally",
+    "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/"
+  },
+  {
+    "id": "kube-memory-pressure",
+    "on": "kubernetes",
+    "match": "\\bNodeHasInsufficientMemory\\b",
+    "class": "memory-pressure",
+    "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
+  },
+  {
+    "id": "kube-cpu-pressure",
+    "on": "kubernetes",
+    "match": "\\bInsufficient cpu\\b",
+    "class": "cpu-pressure",
+    "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/"
+  },
+  {
+    "id": "kube-disk-pressure",
+    "on": "kubernetes",
+    "match": "\\bNodeHasDiskPressure\\b",
+    "class": "disk-pressure",
+    "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
+  },
+  {
+    "id": "kube-evicted",
+    "on": "kubernetes",
+    "match": "\\bEvicted\\b",
+    "class": "evicted",
+    "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
+  },
+  {
+    "id": "kube-crash-loop",
+    "on": "kubernetes",
+    "match": "\\bBackOff\\b|CrashLoopBackOff",
+    "class": "crash-loop",
+    "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-restarts"
+  },
+  {
+    "id": "kube-volume-mount-failed",
+    "on": "kubernetes",
+    "match": "\\bFailedMount\\b",
+    "class": "volume-mount-failed",
+    "source": "https://kubernetes.io/docs/concepts/storage/volumes/"
+  },
+  {
+    "id": "kube-node-not-ready",
+    "on": "kubernetes",
+    "match": "\\bNodeNotReady\\b",
+    "class": "node-not-ready",
+    "source": "https://kubernetes.io/docs/concepts/architecture/nodes/#condition"
   }
 ]

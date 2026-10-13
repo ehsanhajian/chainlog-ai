@@ -280,7 +280,7 @@ def test_example_logs_open_a_case(home: Path) -> None:
         "consensus": 13,
         "validator": 11,
         "builder": 7,
-        "kubernetes": 8,
+        "kubernetes": 10,
     }
     excerpts = [event.excerpt for event in case.events]
     blob = "\n".join(excerpts)
@@ -325,6 +325,8 @@ def test_example_logs_open_a_case(home: Path) -> None:
         "Evicted",
         "FailedScheduling",
         "NodeHasDiskPressure",
+        "NodeHasInsufficientMemory",
+        "NodeNotReady",
     }
     assert any(
         event.pod == "geth-0" and event.namespace == "ethereum" and event.container == "geth"
