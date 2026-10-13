@@ -87,7 +87,18 @@ def test_classify_counts_matches_and_keeps_unclassified_lines(home: Path) -> Non
     assert "freezer-rewind 1" in stdout
     assert "engine-timeout 2" in stdout
     assert "jwt-rejected 1" in stdout
-    assert "missed-attestation 1" in stdout
+    assert "missed-attestation 2" in stdout
+    assert "missed-proposal 2" in stdout
+    assert "checkpoint-sync-failed 1" in stdout
+    assert "weak-subjectivity 1" in stdout
+    assert "fork-choice 1" in stdout
+    assert "reorg 1" in stdout
+    assert "clock-not-synced 1" in stdout
+    assert "doppelganger 1" in stdout
+    assert "signer-timeout 1" in stdout
+    assert "signer-refused 1" in stdout
+    assert "relay-timeout 2" in stdout
+    assert "builder-timeout 1" in stdout
     assert "oom-killed 1" in stdout
     assert "probe-failed 1" in stdout
     assert "unclassified " in stdout
@@ -137,6 +148,93 @@ def test_each_execution_client_covers_the_incident_failures(home: Path) -> None:
             phrase, rule_id = rules[name]
             matched = next(event for event in case.events if phrase in event.excerpt)
             assert matched.rule == rule_id
+
+
+def test_consensus_and_validator_clients_cover_their_failures(home: Path, tmp_path: Path) -> None:
+    root = Path(__file__).parents[1] / "examples"
+    consensus = {
+        "missed-attestation",
+        "missed-proposal",
+        "checkpoint-sync-failed",
+        "weak-subjectivity",
+        "fork-choice",
+        "reorg",
+        "clock-not-synced",
+    }
+    validator = {
+        "missed-attestation",
+        "missed-proposal",
+        "doppelganger",
+        "signer-timeout",
+        "signer-refused",
+    }
+    rules = {
+        "beacon": ("Missed attestation", "lighthouse-missed-attestation"),
+        "prysm": ("weak-subjectivity-checkpoint", "prysm-weak-subjectivity"),
+        "nimbus": ("Chain reorg", "nimbus-reorg"),
+        "lodestar": ("System clock is not in sync", "lodestar-clock"),
+        "validator": ("Doppelganger(s) detected", "lighthouse-doppelganger"),
+        "teku-validator": ("External signer failed to sign", "teku-signer-refused"),
+        "web3signer": ("Failed to sign", "web3signer-signer-refused"),
+        "mev-boost": ("error calling getHeader on relay", "mev-boost-relay-timeout"),
+    }
+    samples = {
+        "beacon": ("consensus", "beacon.log", consensus),
+        "prysm": ("consensus", "prysm.log", consensus),
+        "teku": ("consensus", "teku.log", consensus),
+        "nimbus": ("consensus", "nimbus.log", consensus),
+        "lodestar": ("consensus", "lodestar.log", consensus),
+        "validator": ("validator", "validator.log", validator),
+        "prysm-validator": ("validator", "prysm-validator.log", validator),
+        "teku-validator": ("validator", "teku-validator.log", validator),
+        "nimbus-validator": ("validator", "nimbus-validator.log", validator),
+        "lodestar-validator": ("validator", "lodestar-validator.log", validator),
+        "web3signer": ("validator", "web3signer.log", {"doppelganger", "signer-timeout", "signer-refused"}),
+        "mev-boost": ("builder", "mev-boost.log", {"relay-timeout", "builder-timeout"}),
+    }
+    for case_id, (flag, name, classes) in samples.items():
+        code, _stdout, stderr = run("ingest", "--case", case_id, f"--{flag}", str(root / name))
+        assert code == 0, stderr
+        code, stdout, stderr = run("classify", "--case", case_id)
+        assert code == 0, stderr
+        case = load_case(case_id)
+        found = {event.failure_class for event in case.events if event.failure_class}
+        assert classes <= found, case_id
+        assert "unclassified " in stdout
+        if case_id in rules:
+            phrase, rule_id = rules[case_id]
+            matched = next(event for event in case.events if phrase in event.excerpt)
+            assert matched.rule == rule_id, case_id
+    builder = next(event for event in load_case("mev-boost").events if "builder timeout" in event.excerpt)
+    assert builder.rule == "mev-boost-builder-timeout"
+
+    path = tmp_path / "beacon.log"
+    path.write_text(
+        "Oct 08 06:12:00.102 INFO  Lighthouse started\n"
+        "Oct 08 06:14:20.300 INFO  Beacon chain re-org\n",
+        encoding="utf-8",
+    )
+    code, _stdout, stderr = run(
+        "ingest",
+        "--case",
+        "pod",
+        "--kube",
+        str(path),
+        "--namespace",
+        "ethereum",
+        "--pod",
+        "beacon-0",
+        "--container",
+        "lighthouse",
+        "--previous",
+    )
+    assert code == 0, stderr
+    code, _stdout, stderr = run("classify", "--case", "pod")
+    assert code == 0, stderr
+    reorg = next(event for event in load_case("pod").events if "re-org" in event.excerpt)
+    assert reorg.source == "kubernetes-previous"
+    assert reorg.failure_class == "reorg"
+    assert reorg.rule == "consensus-reorg"
 
 
 def test_unknown_case_and_bad_catalog_are_usage_errors(home: Path, tmp_path: Path) -> None:

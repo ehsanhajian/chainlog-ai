@@ -1,3 +1,8 @@
 INF 2026-10-08 06:00:00.100+00:00 Starting Nimbus validator client
 INF 2026-10-08 06:12:00.200+00:00 Published attestation slot=10274304
 INF 2026-10-08 06:14:00.300+00:00 Failed to publish attestation
+WARN 2026-10-08 06:14:20.000+00:00 Missed attestation slot=10274311
+WARN 2026-10-08 06:14:21.000+00:00 Missed block proposal slot=10274311
+CRIT 2026-10-08 06:14:22.000+00:00 Doppelganger detected index=42
+ERRO 2026-10-08 06:14:23.000+00:00 External signer timed out
+ERRO 2026-10-08 06:14:24.000+00:00 External signer refused to sign status code: 403

@@ -1,3 +1,8 @@
 time="2026-10-08T06:00:00Z" level=info msg="Starting Prysm validator client" version=v5.1.0
 time="2026-10-08T06:12:00Z" level=info msg="Submitted new attestation" slot=10274304
 time="2026-10-08T06:14:00Z" level=error msg="Failed to submit attestation" error="beacon node unavailable"
+time="2026-10-08T06:14:20Z" level=warning msg="Missed attestation" slot=10274311
+time="2026-10-08T06:14:21Z" level=warning msg="Missed block proposal" slot=10274311
+time="2026-10-08T06:14:22Z" level=crit msg="Doppelganger detected" index=42
+time="2026-10-08T06:14:23Z" level=error msg="External signer timed out" slot=10274311
+time="2026-10-08T06:14:24Z" level=error msg="External signer refused to sign" error="status code: 403"

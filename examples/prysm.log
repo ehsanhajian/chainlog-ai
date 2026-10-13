@@ -1,3 +1,9 @@
 time="2026-10-08T06:00:00Z" level=info msg="Starting Prysm beacon node" version=v5.1.0
 time="2026-10-08T06:12:12Z" level=info msg="Synced to head" slot=10274304 epoch=321072 block=0xcdcdcdcdcdcdcdcd
 time="2026-10-08T06:14:00Z" level=warning msg="Missed attestation" slot=10274310
+time="2026-10-08T06:14:20Z" level=error msg="Checkpoint sync failed" error="failed to download checkpoint state"
+time="2026-10-08T06:14:21Z" level=warning msg="weak-subjectivity-checkpoint not provided"
+time="2026-10-08T06:14:22Z" level=error msg="Fork choice error" slot=10274311
+time="2026-10-08T06:14:23Z" level=warning msg="Chain reorg occurred" oldSlot=10274310 newSlot=10274311
+time="2026-10-08T06:14:24Z" level=warning msg="System clock is not in sync"
+time="2026-10-08T06:14:25Z" level=warning msg="Missed block proposal" slot=10274311

@@ -5,3 +5,9 @@ Oct 08 06:12:12.240 INFO  Attestation included                    slot: 10274304
 Oct 08 06:13:58.900 WARN  Error whilst processing payload         slot: 10274310, error: request to execution client timed out
 Oct 08 06:14:00.010 WARN  Missed attestation                      slot: 10274310
 Oct 08 06:14:12.000 INFO  Synced                                  slot: 10274311, epoch: 321072, peers: 64, finalized_epoch: 321070
+Oct 08 06:14:20.000 WARN  Refusing to checkpoint sync             msg: database already exists
+Oct 08 06:14:20.100 CRIT  Weak subjectivity violation             epoch: 321072
+Oct 08 06:14:20.200 ERRO  Fork choice error                       slot: 10274311
+Oct 08 06:14:20.300 INFO  Beacon chain re-org                     old_slot: 10274310, new_slot: 10274311
+Oct 08 06:14:20.400 WARN  Block arrived early                     msg: if this happens consistently, check system clock
+Oct 08 06:14:20.500 WARN  Missed block proposal                   slot: 10274311
