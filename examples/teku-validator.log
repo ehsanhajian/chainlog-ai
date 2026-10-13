@@ -6,3 +6,4 @@
 2026-10-08 06:14:22.000+00:00 | main | CRIT  | Validator | Doppelganger(s) detected index=42
 2026-10-08 06:14:23.000+00:00 | main | ERROR | Signer | External signer timed out
 2026-10-08 06:14:24.000+00:00 | main | ERROR | Signer | External signer failed to sign and returned invalid response status code: 403
+2026-10-08 06:14:25.000+00:00 | main | CRIT  | Signer | Slashable attestation prevented Slot: 10274311

@@ -19,12 +19,24 @@ class CatalogError(Exception):
     """The rule catalog cannot be used."""
 
 
+SEVERITIES = {"info", "warning", "critical"}
+
+_EXECUTION_HEALTHY = re.compile(r"chain head updated|imported new chain segment", re.IGNORECASE)
+_CONSENSUS_HEALTHY = re.compile(r"\bSynced\b|synced to head", re.IGNORECASE)
+_VALIDATOR_HEALTHY = re.compile(
+    r"successfully published attestation|submitted new attestation|\bPublished attestation\b",
+    re.IGNORECASE,
+)
+
+
 @dataclass(frozen=True)
 class Rule:
     id: str
     pattern: re.Pattern[str]
     failure_class: str
     document: str
+    severity: str
+    serving: bool
     client: str | None = None
     on: str | None = None
 
@@ -100,13 +112,55 @@ def label(case: Case, rules: tuple[Rule, ...] | list[Rule]) -> dict[str, int]:
         if matched is None:
             event.failure_class = None
             event.rule = None
+            event.severity = None
+            event.serving = None
             unclassified += 1
             continue
         event.failure_class = matched.failure_class
         event.rule = matched.id
+        event.severity = matched.severity
+        event.serving = matched.serving
         counts[matched.failure_class] = counts.get(matched.failure_class, 0) + 1
+    _note_healthy_lines(case.events)
+    _resume_serving(case.events)
     counts["unclassified"] = unclassified
     return counts
+
+
+def _healthy(event: Event) -> bool:
+    if event.source == "execution" and _EXECUTION_HEALTHY.search(event.excerpt):
+        return True
+    if event.source in {"kubernetes", "kubernetes-previous"} and event.client in EXECUTION_CLIENTS:
+        return _EXECUTION_HEALTHY.search(event.excerpt) is not None
+    if event.source == "consensus" and _CONSENSUS_HEALTHY.search(event.excerpt):
+        return True
+    if event.source == "validator" and _VALIDATOR_HEALTHY.search(event.excerpt):
+        return True
+    return False
+
+
+def _note_healthy_lines(events: list[Event]) -> None:
+    for event in events:
+        if event.failure_class is None and _healthy(event):
+            event.severity = "info"
+            event.serving = True
+
+
+def _resume_serving(events: list[Event]) -> None:
+    """A later synced head or published attestation shows that serving resumed."""
+
+    groups: dict[tuple[str, str | None], list[tuple[int, Event]]] = {}
+    for index, event in enumerate(events):
+        groups.setdefault((event.source, event.client), []).append((index, event))
+    for group in groups.values():
+        ordered = sorted(group, key=lambda item: (item[1].time or "", item[0]))
+        resumed = False
+        for _index, event in reversed(ordered):
+            if event.serving is True and _healthy(event):
+                resumed = True
+                continue
+            if resumed and event.failure_class is not None:
+                event.serving = True
 
 
 def classify_case(case_id: str, catalog: str | Path | None = None) -> str:
@@ -147,6 +201,12 @@ def _rule(item: dict[str, object], seen: set[str]) -> Rule:
     on = _text(item.get("on"))
     if client is None and on is None:
         raise CatalogError(f"rule {rule_id} needs a client or source")
+    severity = _text(item.get("severity"))
+    if severity not in SEVERITIES:
+        raise CatalogError(f"rule {rule_id} has no severity")
+    serving = item.get("serving")
+    if not isinstance(serving, bool):
+        raise CatalogError(f"rule {rule_id} has no serving flag")
     try:
         pattern = re.compile(match, re.IGNORECASE)
     except re.error as exc:
@@ -156,6 +216,8 @@ def _rule(item: dict[str, object], seen: set[str]) -> Rule:
         pattern=pattern,
         failure_class=failure_class,
         document=document,
+        severity=severity,
+        serving=serving,
         client=None if client is None else client.lower(),
         on=None if on is None else on.lower(),
     )
