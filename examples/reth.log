@@ -1,3 +1,16 @@
 2026-10-08T06:00:00.100000Z  INFO reth: Starting reth
 2026-10-08T06:12:12.200000Z  INFO reth_node_events: Chain tip updated number=21234561
 2026-10-08T06:13:58.900000Z ERROR reth_db: Failed to persist block
+2026-10-08T06:14:02.000000Z ERROR reth_db: Database write error: freezer table corrupted
+2026-10-08T06:14:02.100000Z ERROR reth_db: database is locked
+2026-10-08T06:14:02.200000Z ERROR reth_db: No space left on device
+2026-10-08T06:14:02.300000Z ERROR reth_db: Permission denied
+2026-10-08T06:14:02.350000Z ERROR reth_engine: Engine API newPayload context deadline exceeded
+2026-10-08T06:14:02.400000Z  WARN reth_engine: Engine API newPayload status=INVALID
+2026-10-08T06:14:02.500000Z ERROR reth_engine: Engine API method engine_newPayloadV4 not supported
+2026-10-08T06:14:02.600000Z  WARN reth_network: Peer banned
+2026-10-08T06:14:02.700000Z ERROR reth_discv4: Discovery lookup failed
+2026-10-08T06:14:02.800000Z ERROR reth_download: No peers to keep download active
+2026-10-08T06:14:02.900000Z  WARN reth_download: Sync stalled
+2026-10-08T06:14:03.000000Z  WARN reth_db: Truncating ancient chain from=100 to=90
+2026-10-08T06:14:03.100000Z ERROR reth_engine: Invalid JWT signature

@@ -1,3 +1,16 @@
 2026-10-08 06:00:00.100+00:00 | main | INFO  | Besu | Starting Besu
 2026-10-08 06:12:12.200+00:00 | EthScheduler-Workers-0 | INFO  | BlockProcessor | Imported #21234561
 2026-10-08 06:13:58.900+00:00 | EthScheduler-Workers-0 | ERROR | Database | Failed to persist block
+2026-10-08 06:14:02.000+00:00 | main | ERROR | Database | StorageException: database corrupted
+2026-10-08 06:14:02.100+00:00 | main | ERROR | Database | Resource temporarily unavailable
+2026-10-08 06:14:02.200+00:00 | main | ERROR | Database | No space left on device
+2026-10-08 06:14:02.300+00:00 | main | ERROR | Database | Permission denied
+2026-10-08 06:14:02.350+00:00 | main | ERROR | Engine | Engine API newPayload context deadline exceeded
+2026-10-08 06:14:02.400+00:00 | main | WARN  | Engine | Engine API newPayload status=INVALID
+2026-10-08 06:14:02.500+00:00 | main | ERROR | Engine | Engine API method engine_newPayloadV4 not supported
+2026-10-08 06:14:02.600+00:00 | main | WARN  | Peers | Peer banned
+2026-10-08 06:14:02.700+00:00 | main | ERROR | Discovery | Discovery lookup failed
+2026-10-08 06:14:02.800+00:00 | main | ERROR | Sync | No peers to keep download active
+2026-10-08 06:14:02.900+00:00 | main | WARN  | Sync | Sync stalled
+2026-10-08 06:14:03.000+00:00 | main | WARN  | Database | Rewinding blockchain target=90
+2026-10-08 06:14:03.100+00:00 | main | ERROR | Auth | Invalid JWT signature

@@ -7,3 +7,14 @@ WARN [10-08|06:13:40.221] Database compaction is slow              elapsed=8.4s
 ERROR [10-08|06:13:58.883] Failed to persist ancient block         err="leveldb: closed"
 ERROR [10-08|06:14:01.102] Engine API newPayload                    id=0x9f3a err="context deadline exceeded"
 WARN [10-08|06:14:01.200] Invalid JWT token                       auth="Bearer eyJnot-a-jwt.payload-value.signature-value"
+ERROR [10-08|06:14:02.000] Ancient database corrupted              err="freezer table corrupted"
+ERROR [10-08|06:14:02.100] Failed to open database                 err="open /data/geth/chaindata/LOCK: resource temporarily unavailable"
+ERROR [10-08|06:14:02.200] Failed to persist block                 err="no space left on device"
+ERROR [10-08|06:14:02.300] Failed to open database                 err="open /data/geth/chaindata/CURRENT: permission denied"
+WARN [10-08|06:14:02.400] Served engine_newPayload                 status=INVALID
+ERROR [10-08|06:14:02.500] Engine API method engine_newPayloadV4 not supported
+DEBUG [10-08|06:14:02.600] Removing p2p peer                       reason=banned
+WARN [10-08|06:14:02.700] Discovery lookup failed                  err="no route to host"
+ERROR [10-08|06:14:02.800] Synchronisation failed                  err="no peers to keep download active"
+WARN [10-08|06:14:02.900] Sync stalled                             err="no progress"
+WARN [10-08|06:14:03.000] Truncating ancient chain                 from=100 to=90

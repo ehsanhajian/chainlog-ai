@@ -9,6 +9,7 @@ from importlib.resources import files
 from pathlib import Path
 
 from chainlog_ai.case import Case, Event, load_case, save_case
+from chainlog_ai.execution import EXECUTION_CLIENTS
 
 
 class CatalogError(Exception):
@@ -27,9 +28,15 @@ class Rule:
     def matches(self, event: Event) -> bool:
         if self.client is not None and event.client != self.client:
             return False
-        if self.on is not None and event.source != self.on:
+        if self.on is not None and not _source_matches(self.on, event):
             return False
         return self.pattern.search(event.excerpt) is not None
+
+
+def _source_matches(source: str, event: Event) -> bool:
+    if event.source == source:
+        return True
+    return source == "execution" and event.client in EXECUTION_CLIENTS
 
 
 def load_catalog(text: str) -> tuple[Rule, ...]:

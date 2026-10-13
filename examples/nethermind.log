@@ -1,3 +1,16 @@
 2026-10-08 06:00:00.0012|Info|Starting Nethermind
 2026-10-08 06:12:12.1000|Info|Imported block number=21234561
 2026-10-08 06:13:58.8800|Error|Failed to persist block
+2026-10-08 06:14:02.0000|Error|Corruption: block checksum mismatch
+2026-10-08 06:14:02.1000|Error|IO error: While lock file Resource temporarily unavailable
+2026-10-08 06:14:02.2000|Error|No space left on device
+2026-10-08 06:14:02.3000|Error|Permission denied
+2026-10-08 06:14:02.3500|Error|Engine API newPayload context deadline exceeded
+2026-10-08 06:14:02.4000|Warn|Engine API newPayload status=INVALID
+2026-10-08 06:14:02.5000|Error|Engine API method engine_newPayloadV4 not supported
+2026-10-08 06:14:02.6000|Warn|Peer banned
+2026-10-08 06:14:02.7000|Error|Discovery lookup failed
+2026-10-08 06:14:02.8000|Error|No peers to keep download active
+2026-10-08 06:14:02.9000|Warn|Sync stalled
+2026-10-08 06:14:03.0000|Warn|Rewinding blockchain target=90
+2026-10-08 06:14:03.1000|Error|JWT token validation failed

@@ -21,6 +21,125 @@
     "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/authentication.md"
   },
   {
+    "id": "nethermind-database-corrupt",
+    "client": "nethermind",
+    "match": "Corruption:",
+    "class": "database-corrupt",
+    "source": "https://docs.nethermind.io/fundamentals/database"
+  },
+  {
+    "id": "erigon-database-lock",
+    "client": "erigon",
+    "match": "MDBX_BUSY",
+    "class": "database-lock",
+    "source": "https://github.com/erigontech/erigon"
+  },
+  {
+    "id": "besu-database-corrupt",
+    "client": "besu",
+    "match": "StorageException",
+    "class": "database-corrupt",
+    "source": "https://besu.hyperledger.org/public-networks/how-to/troubleshoot"
+  },
+  {
+    "id": "reth-database-corrupt",
+    "client": "reth",
+    "match": "Database write error",
+    "class": "database-corrupt",
+    "source": "https://reth.rs/"
+  },
+  {
+    "id": "execution-database-corrupt",
+    "on": "execution",
+    "match": "freezer table corrupted|database corrupted|checksum mismatch|ancient database corrupted",
+    "class": "database-corrupt",
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/core/rawdb/freezer.go"
+  },
+  {
+    "id": "execution-database-lock",
+    "on": "execution",
+    "match": "resource temporarily unavailable|database is locked|While lock file",
+    "class": "database-lock",
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/core/rawdb/database.go"
+  },
+  {
+    "id": "execution-disk-full",
+    "on": "execution",
+    "match": "no space left on device",
+    "class": "disk-full",
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/core/rawdb/database.go"
+  },
+  {
+    "id": "execution-permission-denied",
+    "on": "execution",
+    "match": "permission denied",
+    "class": "permission-denied",
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/core/rawdb/database.go"
+  },
+  {
+    "id": "execution-engine-timeout",
+    "on": "execution",
+    "match": "context deadline exceeded",
+    "class": "engine-timeout",
+    "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/paris.md"
+  },
+  {
+    "id": "execution-invalid-payload",
+    "on": "execution",
+    "match": "status=INVALID|invalid new payload",
+    "class": "invalid-payload",
+    "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/paris.md"
+  },
+  {
+    "id": "execution-capability-mismatch",
+    "on": "execution",
+    "match": "engine_\\w+ not supported|unsupported fork|capability mismatch",
+    "class": "capability-mismatch",
+    "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/cancun.md"
+  },
+  {
+    "id": "execution-peer-banned",
+    "on": "execution",
+    "match": "reason=banned|\\bpeer banned\\b|\\bbanned peer\\b",
+    "class": "peer-banned",
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/p2p/dial.go"
+  },
+  {
+    "id": "execution-discovery-failed",
+    "on": "execution",
+    "match": "discovery lookup failed|discovery failed",
+    "class": "discovery-failed",
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/p2p/discover/lookup.go"
+  },
+  {
+    "id": "execution-no-peers",
+    "on": "execution",
+    "match": "no peers",
+    "class": "no-peers",
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/eth/downloader/downloader.go"
+  },
+  {
+    "id": "execution-sync-stalled",
+    "on": "execution",
+    "match": "sync stalled|synchronisation stalled|stalling state sync",
+    "class": "sync-stalled",
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/eth/downloader/downloader.go"
+  },
+  {
+    "id": "execution-freezer-rewind",
+    "on": "execution",
+    "match": "truncating ancient|rewinding blockchain",
+    "class": "freezer-rewind",
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/core/rawdb/freezer.go"
+  },
+  {
+    "id": "execution-jwt-rejected",
+    "on": "execution",
+    "match": "jwt token validation failed|invalid jwt signature",
+    "class": "jwt-rejected",
+    "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/authentication.md"
+  },
+  {
     "id": "lighthouse-engine-timeout",
     "client": "lighthouse",
     "match": "request to execution client timed out",
