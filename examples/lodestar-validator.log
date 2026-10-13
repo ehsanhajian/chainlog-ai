@@ -1,3 +1,8 @@
 Oct-08 06:00:00.123[] info: Lodestar validator version=v1.22.0
 Oct-08 06:12:00.240[] info: Published attestation slot=10274304
 Oct-08 06:14:00.010[] info: Failed to publish attestation
+Oct-08 06:14:20.000[] warn: Missed attestation slot=10274311
+Oct-08 06:14:21.000[] warn: Missed block proposal slot=10274311
+Oct-08 06:14:22.000[] crit: Doppelganger detected index=42
+Oct-08 06:14:23.000[] error: External signer timed out
+Oct-08 06:14:24.000[] error: External signer refused to sign status code: 403

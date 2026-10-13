@@ -4,3 +4,8 @@ Oct 08 06:00:01.400 ERRO  Failed to decrypt keystore              keystore-passw
 Oct 08 06:12:00.180 INFO  Successfully published attestation      slot: 10274304, committee_index: 3, validator: 412908
 Oct 08 06:14:00.220 ERRO  Failed to publish attestation           slot: 10274310, error: beacon node unavailable
 Oct 08 06:14:12.300 INFO  Successfully published attestation      slot: 10274311, committee_index: 3, validator: 412908
+Oct 08 06:14:20.000 WARN  Missed attestation                      slot: 10274311
+Oct 08 06:14:20.100 WARN  Missed block proposal                   slot: 10274311
+Oct 08 06:14:20.200 CRIT  Doppelganger(s) detected                doppelganger_indices: [42]
+Oct 08 06:14:20.300 ERRO  External signer timed out               slot: 10274311
+Oct 08 06:14:20.400 ERRO  External signer refused to sign         status code: 403

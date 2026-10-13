@@ -277,8 +277,8 @@ def test_example_logs_open_a_case(home: Path) -> None:
         counts[event.source] = counts.get(event.source, 0) + 1
     assert counts == {
         "execution": 20,
-        "consensus": 7,
-        "validator": 6,
+        "consensus": 13,
+        "validator": 11,
         "builder": 7,
         "kubernetes": 8,
     }

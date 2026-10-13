@@ -26,9 +26,9 @@ Work is tracked in [milestones](https://github.com/ehsanhajian/chainlog-ai/miles
 
 `examples/geth.log` starts with a Geth banner, so the execution events are recorded as `geth` with the time each line prints. `examples/nethermind.log`, `examples/erigon.log`, `examples/besu.log`, and `examples/reth.log` are the other execution clients. `--execution-client` names the client when that banner is not in the file. Those logs include database, disk, engine, peer, sync, and JWT failures. `classify` names them from the execution rules, and each rule cites a public source.
 
-`examples/beacon.log` is Lighthouse. `examples/prysm.log`, `examples/teku.log`, `examples/nimbus.log`, and `examples/lodestar.log` are the other consensus clients. A line that prints a slot, epoch, or block keeps those fields. `--consensus-client` names the client when the banner is absent.
+`examples/beacon.log` is Lighthouse. `examples/prysm.log`, `examples/teku.log`, `examples/nimbus.log`, and `examples/lodestar.log` are the other consensus clients. A line that prints a slot, epoch, or block keeps those fields. `--consensus-client` names the client when the banner is absent. Those logs include missed duties, checkpoint sync, weak subjectivity, fork choice, reorgs, and a clock that is not in sync.
 
-`examples/validator.log` is the Lighthouse validator client. `examples/prysm-validator.log`, `examples/teku-validator.log`, `examples/nimbus-validator.log`, and `examples/lodestar-validator.log` are the other validator clients. `examples/web3signer.log` stays on the validator source, including a signing failure and doppelganger protection. `examples/mev-boost.log` stays on the builder source, including a relay timeout and a builder timeout. `--validator-client` and `--builder-client` name the client when the banner is absent.
+`examples/validator.log` is the Lighthouse validator client. `examples/prysm-validator.log`, `examples/teku-validator.log`, `examples/nimbus-validator.log`, and `examples/lodestar-validator.log` are the other validator clients. `examples/web3signer.log` stays on the validator source, including a signing failure, a signer timeout, a signer refusal, and doppelganger detection. `examples/mev-boost.log` stays on the builder source, including a relay timeout and a builder timeout. `--validator-client` and `--builder-client` name the client when the banner is absent. `classify` names these from the consensus and validator rules, and each rule cites a public source.
 
 `examples/events.json` is a Kubernetes events document. Each event keeps its pod, container, namespace, and reason, including OOMKilled, Killing, BackOff, Unhealthy, Evicted, FailedMount, node disk pressure, and FailedScheduling. `examples/pods/ethereum_geth-0_poduid/geth/0.log` is the previous container and `1.log` is the current one. The restart count comes from the file name. The previous container is stored as its own source. A Geth line inside the pod is recorded as `geth`, and the pod name stays with it. `--namespace`, `--pod`, `--container`, `--restart`, and `--previous` name the container when the path is not a kubelet log path.
 
@@ -64,6 +64,11 @@ chainlog-ai ingest --case incident \
 chainlog-ai classify --case incident
 chainlog-ai ingest --case execution-rules --execution examples/nethermind.log
 chainlog-ai classify --case execution-rules
+chainlog-ai ingest --case consensus-rules \
+  --consensus examples/beacon.log \
+  --validator examples/validator.log \
+  --builder examples/mev-boost.log
+chainlog-ai classify --case consensus-rules
 chainlog-ai ingest --case 20261008T061200Z --execution examples/geth.log
 chainlog-ai why --case 20261008T061200Z
 chainlog-ai ask --case 20261008T061200Z "what happened in the slot before the miss?"

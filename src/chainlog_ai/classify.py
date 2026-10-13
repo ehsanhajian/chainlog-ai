@@ -8,8 +8,11 @@ from dataclasses import dataclass
 from importlib.resources import files
 from pathlib import Path
 
+from chainlog_ai.builder import BUILDER_CLIENTS
 from chainlog_ai.case import Case, Event, load_case, save_case
+from chainlog_ai.consensus import CONSENSUS_CLIENTS
 from chainlog_ai.execution import EXECUTION_CLIENTS
+from chainlog_ai.validator import VALIDATOR_CLIENTS
 
 
 class CatalogError(Exception):
@@ -33,10 +36,24 @@ class Rule:
         return self.pattern.search(event.excerpt) is not None
 
 
+_POD_SOURCES = {"kubernetes", "kubernetes-previous"}
+_CLIENTS = {
+    "execution": EXECUTION_CLIENTS,
+    "consensus": CONSENSUS_CLIENTS,
+    "validator": VALIDATOR_CLIENTS,
+    "builder": BUILDER_CLIENTS,
+}
+
+
 def _source_matches(source: str, event: Event) -> bool:
     if event.source == source:
         return True
-    return source == "execution" and event.client in EXECUTION_CLIENTS
+    if source == "execution" and event.client in EXECUTION_CLIENTS:
+        return True
+    if event.source not in _POD_SOURCES:
+        return False
+    clients = _CLIENTS.get(source)
+    return clients is not None and event.client in clients
 
 
 def load_catalog(text: str) -> tuple[Rule, ...]:

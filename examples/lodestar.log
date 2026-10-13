@@ -1,3 +1,10 @@
 Oct-08 06:00:00.123[] info: Lodestar version=v1.22.0
 Oct-08 06:12:12.240[] info: Synced slot=10274304 epoch=321072 block=0x1111111111111111
 Oct-08 06:14:00.010[] info: Peer count updated
+Oct-08 06:14:20.000[] error: Checkpoint sync failed
+Oct-08 06:14:21.000[] error: Weak subjectivity violation
+Oct-08 06:14:22.000[] error: Fork choice error
+Oct-08 06:14:23.000[] warn: Chain reorg old=10274310 new=10274311
+Oct-08 06:14:24.000[] warn: System clock is not in sync
+Oct-08 06:14:25.000[] warn: Missed attestation slot=10274311
+Oct-08 06:14:26.000[] warn: Missed block proposal slot=10274311

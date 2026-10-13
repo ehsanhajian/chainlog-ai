@@ -1,3 +1,10 @@
 INF 2026-10-08 06:00:00.100+00:00 Starting Nimbus beacon node
 INF 2026-10-08 06:12:12.200+00:00 Slot start slot=10274304 epoch=321072
 INF 2026-10-08 06:14:00.010+00:00 Peer count changed peers=64
+ERRO 2026-10-08 06:14:20.000+00:00 Checkpoint sync failed
+ERRO 2026-10-08 06:14:21.000+00:00 Weak subjectivity violation
+ERRO 2026-10-08 06:14:22.000+00:00 Fork choice error
+WARN 2026-10-08 06:14:23.000+00:00 Chain reorg old=10274310 new=10274311
+WARN 2026-10-08 06:14:24.000+00:00 System clock is not in sync
+WARN 2026-10-08 06:14:25.000+00:00 Missed attestation slot=10274311
+WARN 2026-10-08 06:14:26.000+00:00 Missed block proposal slot=10274311

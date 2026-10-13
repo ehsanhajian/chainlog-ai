@@ -1,3 +1,8 @@
 2026-10-08 06:00:00.100+00:00 | main | INFO  | Teku | Starting Teku validator client
 2026-10-08 06:12:00.200+00:00 | main | INFO  | Validator | Published attestation Slot: 10274304
 2026-10-08 06:14:00.300+00:00 | main | ERROR | Validator | Failed to publish attestation
+2026-10-08 06:14:20.000+00:00 | main | WARN  | Validator | Missed attestation Slot: 10274311
+2026-10-08 06:14:21.000+00:00 | main | WARN  | Validator | Missed block proposal Slot: 10274311
+2026-10-08 06:14:22.000+00:00 | main | CRIT  | Validator | Doppelganger(s) detected index=42
+2026-10-08 06:14:23.000+00:00 | main | ERROR | Signer | External signer timed out
+2026-10-08 06:14:24.000+00:00 | main | ERROR | Signer | External signer failed to sign and returned invalid response status code: 403

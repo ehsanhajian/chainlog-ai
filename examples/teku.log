@@ -1,3 +1,9 @@
 2026-10-08 06:00:00.100+00:00 | main | INFO  | Teku | Starting Teku
 2026-10-08 06:12:12.200+00:00 | EventThread | INFO  | SlotProcessor | Slot: 10274304, Epoch: 321072, block: 0xefefefefefefefef
 2026-10-08 06:14:00.010+00:00 | EventThread | WARN  | Attestation | Missed attestation
+2026-10-08 06:14:20.000+00:00 | main | ERROR | Sync | Checkpoint sync failed
+2026-10-08 06:14:21.000+00:00 | main | ERROR | Chain | Weak subjectivity violation
+2026-10-08 06:14:22.000+00:00 | main | ERROR | ForkChoice | Fork choice error
+2026-10-08 06:14:23.000+00:00 | main | WARN  | Chain | Chain reorg old=10274310 new=10274311
+2026-10-08 06:14:24.000+00:00 | main | WARN  | Time | System clock is not in sync
+2026-10-08 06:14:25.000+00:00 | main | WARN  | Validator | Missed block proposal

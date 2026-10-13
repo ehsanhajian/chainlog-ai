@@ -154,6 +154,160 @@
     "source": "https://lighthouse-book.sigmaprime.io/faq.html"
   },
   {
+    "id": "lighthouse-doppelganger",
+    "client": "lighthouse",
+    "match": "Doppelganger\\(s\\) detected",
+    "class": "doppelganger",
+    "source": "https://lighthouse-book.sigmaprime.io/validator_doppelganger.html"
+  },
+  {
+    "id": "prysm-weak-subjectivity",
+    "client": "prysm",
+    "match": "weak-subjectivity-checkpoint",
+    "class": "weak-subjectivity",
+    "source": "https://prysm.offchainlabs.com/docs/troubleshooting/"
+  },
+  {
+    "id": "teku-signer-refused",
+    "client": "teku",
+    "match": "External signer failed to sign",
+    "class": "signer-refused",
+    "source": "https://github.com/Consensys/teku/blob/master/validator/client/src/main/java/tech/pegasys/teku/validator/client/signer/ExternalSignerException.java"
+  },
+  {
+    "id": "nimbus-reorg",
+    "client": "nimbus",
+    "match": "Chain reorg",
+    "class": "reorg",
+    "source": "https://nimbus.guide/"
+  },
+  {
+    "id": "lodestar-clock",
+    "client": "lodestar",
+    "match": "System clock is not in sync",
+    "class": "clock-not-synced",
+    "source": "https://chainsafe.github.io/lodestar/"
+  },
+  {
+    "id": "web3signer-signer-refused",
+    "client": "web3signer",
+    "match": "Failed to sign",
+    "class": "signer-refused",
+    "source": "https://docs.web3signer.consensys.io/development/how-to/monitor/metrics"
+  },
+  {
+    "id": "mev-boost-relay-timeout",
+    "client": "mev-boost",
+    "match": "error calling getHeader on relay",
+    "class": "relay-timeout",
+    "source": "https://github.com/ethereum/builder-specs/blob/main/specs/validator.md"
+  },
+  {
+    "id": "mev-boost-builder-timeout",
+    "client": "mev-boost",
+    "match": "builder timeout",
+    "class": "builder-timeout",
+    "source": "https://github.com/prysmaticlabs/prysm/issues/11490"
+  },
+  {
+    "id": "consensus-missed-attestation",
+    "on": "consensus",
+    "match": "missed attestation",
+    "class": "missed-attestation",
+    "source": "https://lighthouse-book.sigmaprime.io/faq.html"
+  },
+  {
+    "id": "validator-missed-attestation",
+    "on": "validator",
+    "match": "missed attestation",
+    "class": "missed-attestation",
+    "source": "https://lighthouse-book.sigmaprime.io/faq.html"
+  },
+  {
+    "id": "consensus-missed-proposal",
+    "on": "consensus",
+    "match": "missed block proposal|missed proposal",
+    "class": "missed-proposal",
+    "source": "https://github.com/sigp/lighthouse/issues/5437"
+  },
+  {
+    "id": "validator-missed-proposal",
+    "on": "validator",
+    "match": "missed block proposal|missed proposal",
+    "class": "missed-proposal",
+    "source": "https://github.com/sigp/lighthouse/issues/5437"
+  },
+  {
+    "id": "consensus-checkpoint-sync-failed",
+    "on": "consensus",
+    "match": "checkpoint sync failed|refusing to checkpoint sync",
+    "class": "checkpoint-sync-failed",
+    "source": "https://lighthouse-book.sigmaprime.io/checkpoint-sync.html"
+  },
+  {
+    "id": "consensus-weak-subjectivity",
+    "on": "consensus",
+    "match": "weak subjectivity|weak-subjectivity",
+    "class": "weak-subjectivity",
+    "source": "https://ethereum.github.io/consensus-specs/specs/phase0/weak-subjectivity/"
+  },
+  {
+    "id": "consensus-fork-choice",
+    "on": "consensus",
+    "match": "fork choice error|fork choice failed",
+    "class": "fork-choice",
+    "source": "https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/fork-choice.md"
+  },
+  {
+    "id": "consensus-reorg",
+    "on": "consensus",
+    "match": "chain re-org|chain reorg",
+    "class": "reorg",
+    "source": "https://lighthouse-book.sigmaprime.io/faq.html"
+  },
+  {
+    "id": "consensus-clock-not-synced",
+    "on": "consensus",
+    "match": "system clock",
+    "class": "clock-not-synced",
+    "source": "https://github.com/sigp/lighthouse/issues/2357"
+  },
+  {
+    "id": "validator-doppelganger",
+    "on": "validator",
+    "match": "doppelganger",
+    "class": "doppelganger",
+    "source": "https://lighthouse-book.sigmaprime.io/validator_doppelganger.html"
+  },
+  {
+    "id": "validator-signer-timeout",
+    "on": "validator",
+    "match": "signer timed out|signer timeout",
+    "class": "signer-timeout",
+    "source": "https://docs.web3signer.consensys.io/how-to/run-at-scale"
+  },
+  {
+    "id": "validator-signer-refused",
+    "on": "validator",
+    "match": "refused to sign|failed to sign|status code: 403",
+    "class": "signer-refused",
+    "source": "https://docs.web3signer.consensys.io/development/how-to/monitor/metrics"
+  },
+  {
+    "id": "builder-relay-timeout",
+    "on": "builder",
+    "match": "error calling getHeader on relay|no successful getHeader response",
+    "class": "relay-timeout",
+    "source": "https://github.com/ethereum/builder-specs/blob/main/specs/validator.md"
+  },
+  {
+    "id": "builder-builder-timeout",
+    "on": "builder",
+    "match": "builder timeout",
+    "class": "builder-timeout",
+    "source": "https://github.com/prysmaticlabs/prysm/issues/11490"
+  },
+  {
     "id": "kube-oom-killed",
     "on": "kubernetes",
     "match": "\\bOOMKilled\\b",
