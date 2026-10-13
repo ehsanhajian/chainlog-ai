@@ -24,7 +24,7 @@ Work is tracked in [milestones](https://github.com/ehsanhajian/chainlog-ai/miles
 
 `examples/` is a short incident you can ingest without a node. The files include fake secrets. Ingest prints `case <id>`. The excerpts are in `~/.chainlog-ai/cases/<id>/case.json` (or under `CHAINLOG_AI_HOME`). A key, mnemonic, JWT, password, or API token is marked `[redacted]`. The pubkey, peer id, and block hash stay. The same flags take the operator's own files.
 
-`examples/geth.log` starts with a Geth banner, so the execution events are recorded as `geth` with the time each line prints. `examples/nethermind.log`, `examples/erigon.log`, `examples/besu.log`, and `examples/reth.log` are the other execution clients. `--execution-client` names the client when that banner is not in the file.
+`examples/geth.log` starts with a Geth banner, so the execution events are recorded as `geth` with the time each line prints. `examples/nethermind.log`, `examples/erigon.log`, `examples/besu.log`, and `examples/reth.log` are the other execution clients. `--execution-client` names the client when that banner is not in the file. Those logs include database, disk, engine, peer, sync, and JWT failures. `classify` names them from the execution rules, and each rule cites a public source.
 
 `examples/beacon.log` is Lighthouse. `examples/prysm.log`, `examples/teku.log`, `examples/nimbus.log`, and `examples/lodestar.log` are the other consensus clients. A line that prints a slot, epoch, or block keeps those fields. `--consensus-client` names the client when the banner is absent.
 
@@ -62,6 +62,8 @@ chainlog-ai ingest --case incident \
   --builder examples/mev-boost.log \
   --kube examples/events.json
 chainlog-ai classify --case incident
+chainlog-ai ingest --case execution-rules --execution examples/nethermind.log
+chainlog-ai classify --case execution-rules
 chainlog-ai ingest --case 20261008T061200Z --execution examples/geth.log
 chainlog-ai why --case 20261008T061200Z
 chainlog-ai ask --case 20261008T061200Z "what happened in the slot before the miss?"

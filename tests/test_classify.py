@@ -74,6 +74,17 @@ def test_classify_counts_matches_and_keeps_unclassified_lines(home: Path) -> Non
     code, stdout, stderr = run("classify", "--case", "incident")
     assert code == 0, stderr
     assert "database-closed 1" in stdout
+    assert "database-corrupt 1" in stdout
+    assert "database-lock 1" in stdout
+    assert "disk-full 1" in stdout
+    assert "permission-denied 1" in stdout
+    assert "invalid-payload 1" in stdout
+    assert "capability-mismatch 1" in stdout
+    assert "peer-banned 1" in stdout
+    assert "discovery-failed 1" in stdout
+    assert "no-peers 1" in stdout
+    assert "sync-stalled 1" in stdout
+    assert "freezer-rewind 1" in stdout
     assert "engine-timeout 2" in stdout
     assert "jwt-rejected 1" in stdout
     assert "missed-attestation 1" in stdout
@@ -88,6 +99,44 @@ def test_classify_counts_matches_and_keeps_unclassified_lines(home: Path) -> Non
     assert kept.failure_class is None
     assert kept.rule is None
     assert "Successfully published attestation" in kept.excerpt
+
+
+def test_each_execution_client_covers_the_incident_failures(home: Path) -> None:
+    root = Path(__file__).parents[1] / "examples"
+    classes = {
+        "database-corrupt",
+        "database-lock",
+        "disk-full",
+        "permission-denied",
+        "invalid-payload",
+        "engine-timeout",
+        "capability-mismatch",
+        "peer-banned",
+        "discovery-failed",
+        "no-peers",
+        "sync-stalled",
+        "freezer-rewind",
+        "jwt-rejected",
+    }
+    rules = {
+        "nethermind": ("Corruption:", "nethermind-database-corrupt"),
+        "erigon": ("MDBX_BUSY", "erigon-database-lock"),
+        "besu": ("StorageException", "besu-database-corrupt"),
+        "reth": ("Database write error", "reth-database-corrupt"),
+    }
+    for name in ("geth", "nethermind", "erigon", "besu", "reth"):
+        code, _stdout, stderr = run("ingest", "--case", name, "--execution", str(root / f"{name}.log"))
+        assert code == 0, stderr
+        code, stdout, stderr = run("classify", "--case", name)
+        assert code == 0, stderr
+        case = load_case(name)
+        found = {event.failure_class for event in case.events if event.failure_class}
+        assert classes <= found, name
+        assert "unclassified " in stdout
+        if name in rules:
+            phrase, rule_id = rules[name]
+            matched = next(event for event in case.events if phrase in event.excerpt)
+            assert matched.rule == rule_id
 
 
 def test_unknown_case_and_bad_catalog_are_usage_errors(home: Path, tmp_path: Path) -> None:
