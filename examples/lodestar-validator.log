@@ -6,3 +6,4 @@ Oct-08 06:14:21.000[] warn: Missed block proposal slot=10274311
 Oct-08 06:14:22.000[] crit: Doppelganger detected index=42
 Oct-08 06:14:23.000[] error: External signer timed out
 Oct-08 06:14:24.000[] error: External signer refused to sign status code: 403
+Oct-08 06:14:25.000[] crit: Slashable attestation prevented slot=10274311

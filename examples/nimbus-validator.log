@@ -6,3 +6,4 @@ WARN 2026-10-08 06:14:21.000+00:00 Missed block proposal slot=10274311
 CRIT 2026-10-08 06:14:22.000+00:00 Doppelganger detected index=42
 ERRO 2026-10-08 06:14:23.000+00:00 External signer timed out
 ERRO 2026-10-08 06:14:24.000+00:00 External signer refused to sign status code: 403
+CRIT 2026-10-08 06:14:25.000+00:00 Slashable attestation prevented slot=10274311

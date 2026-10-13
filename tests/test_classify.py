@@ -32,6 +32,8 @@ def test_default_catalog_rules_have_a_source() -> None:
     rules = default_catalog()
     assert rules
     assert all(rule.document.startswith("https://") for rule in rules)
+    assert all(rule.severity in {"info", "warning", "critical"} for rule in rules)
+    assert all(isinstance(rule.serving, bool) for rule in rules)
 
 
 def test_catalog_without_a_source_fails_to_load(tmp_path: Path) -> None:
@@ -51,6 +53,20 @@ def test_catalog_without_a_source_fails_to_load(tmp_path: Path) -> None:
     )
     with pytest.raises(CatalogError, match="has no source"):
         load_catalog(path.read_text(encoding="utf-8"))
+    with pytest.raises(CatalogError, match="has no severity"):
+        load_catalog(
+            json.dumps(
+                [
+                    {
+                        "id": "bare",
+                        "client": "geth",
+                        "match": "Geth",
+                        "class": "started",
+                        "source": "https://example.com/started",
+                    }
+                ]
+            )
+        )
 
 
 def test_classify_counts_matches_and_keeps_unclassified_lines(home: Path) -> None:
@@ -109,15 +125,40 @@ def test_classify_counts_matches_and_keeps_unclassified_lines(home: Path) -> Non
     assert "crash-loop 1" in stdout
     assert "volume-mount-failed 1" in stdout
     assert "node-not-ready 1" in stdout
+    assert "slashable 1" in stdout
     assert "unclassified " in stdout
     case = load_case("incident")
     closed = next(event for event in case.events if "leveldb: closed" in event.excerpt)
     assert closed.failure_class == "database-closed"
     assert closed.rule == "geth-database-closed"
+    assert closed.severity == "critical"
+    assert closed.serving is False
     kept = next(event for event in case.events if "Successfully published attestation" in event.excerpt)
     assert kept.failure_class is None
     assert kept.rule is None
+    assert kept.severity == "info"
+    assert kept.serving is True
     assert "Successfully published attestation" in kept.excerpt
+    beacon_miss = next(
+        event
+        for event in case.events
+        if event.source == "consensus" and event.failure_class == "missed-attestation"
+    )
+    assert beacon_miss.severity == "warning"
+    assert beacon_miss.serving is True
+    validator_miss = next(
+        event
+        for event in case.events
+        if event.source == "validator" and event.failure_class == "missed-attestation"
+    )
+    assert validator_miss.serving is False
+    doppelganger = next(event for event in case.events if event.failure_class == "doppelganger")
+    assert doppelganger.severity == "critical"
+    assert doppelganger.serving is False
+    slashable = next(event for event in case.events if event.failure_class == "slashable")
+    assert slashable.severity == "critical"
+    assert slashable.serving is False
+    assert slashable.rule == "validator-slashable"
 
 
 def test_each_execution_client_covers_the_incident_failures(home: Path) -> None:
@@ -175,6 +216,7 @@ def test_consensus_and_validator_clients_cover_their_failures(home: Path, tmp_pa
         "doppelganger",
         "signer-timeout",
         "signer-refused",
+        "slashable",
     }
     rules = {
         "beacon": ("Missed attestation", "lighthouse-missed-attestation"),
@@ -197,7 +239,11 @@ def test_consensus_and_validator_clients_cover_their_failures(home: Path, tmp_pa
         "teku-validator": ("validator", "teku-validator.log", validator),
         "nimbus-validator": ("validator", "nimbus-validator.log", validator),
         "lodestar-validator": ("validator", "lodestar-validator.log", validator),
-        "web3signer": ("validator", "web3signer.log", {"doppelganger", "signer-timeout", "signer-refused"}),
+        "web3signer": (
+            "validator",
+            "web3signer.log",
+            {"doppelganger", "signer-timeout", "signer-refused", "slashable"},
+        ),
         "mev-boost": ("builder", "mev-boost.log", {"relay-timeout", "builder-timeout"}),
     }
     for case_id, (flag, name, classes) in samples.items():

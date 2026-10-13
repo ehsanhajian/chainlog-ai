@@ -9,3 +9,4 @@ Oct 08 06:14:20.100 WARN  Missed block proposal                   slot: 10274311
 Oct 08 06:14:20.200 CRIT  Doppelganger(s) detected                doppelganger_indices: [42]
 Oct 08 06:14:20.300 ERRO  External signer timed out               slot: 10274311
 Oct 08 06:14:20.400 ERRO  External signer refused to sign         status code: 403
+Oct 08 06:14:20.500 CRIT  Slashable attestation prevented          slot: 10274311

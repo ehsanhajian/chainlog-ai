@@ -44,6 +44,8 @@ class Event:
     generation: int = 0
     failure_class: str | None = None
     rule: str | None = None
+    severity: str | None = None
+    serving: bool | None = None
 
     def identity(self) -> tuple[str, str, int, int, int]:
         return (self.source, self.path, self.byte_start, self.byte_end, self.generation)
@@ -67,6 +69,8 @@ class Event:
             "generation": self.generation,
             "class": self.failure_class,
             "rule": self.rule,
+            "severity": self.severity,
+            "serving": self.serving,
             "excerpt": self.excerpt,
         }
 
@@ -90,6 +94,8 @@ class Event:
         generation = data.get("generation", 0)
         failure_class = data.get("class")
         rule = data.get("rule")
+        severity = data.get("severity")
+        serving = data.get("serving")
         if not isinstance(source, str) or not isinstance(path, str) or not isinstance(excerpt, str):
             raise TypeError("event fields must be strings")
         if client is not None and not isinstance(client, str):
@@ -124,6 +130,12 @@ class Event:
             raise TypeError("class must be a string or null")
         if rule is not None and not isinstance(rule, str):
             raise TypeError("rule must be a string or null")
+        if severity is not None and not isinstance(severity, str):
+            raise TypeError("severity must be a string or null")
+        if severity is not None and severity not in {"info", "warning", "critical"}:
+            raise TypeError("severity must be info, warning, or critical")
+        if serving is not None and not isinstance(serving, bool):
+            raise TypeError("serving must be a boolean or null")
         return cls(
             source=source,
             client=client,
@@ -143,6 +155,8 @@ class Event:
             generation=generation,
             failure_class=failure_class,
             rule=rule,
+            severity=severity,
+            serving=serving,
         )
 
 

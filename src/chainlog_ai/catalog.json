@@ -4,6 +4,8 @@
     "client": "geth",
     "match": "leveldb: closed",
     "class": "database-closed",
+    "severity": "critical",
+    "serving": false,
     "source": "https://github.com/syndtr/goleveldb/blob/master/leveldb/errors.go"
   },
   {
@@ -11,6 +13,8 @@
     "client": "geth",
     "match": "Engine API newPayload.*context deadline exceeded",
     "class": "engine-timeout",
+    "severity": "warning",
+    "serving": true,
     "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/paris.md"
   },
   {
@@ -18,6 +22,8 @@
     "client": "geth",
     "match": "Invalid JWT token",
     "class": "jwt-rejected",
+    "severity": "critical",
+    "serving": false,
     "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/authentication.md"
   },
   {
@@ -25,6 +31,8 @@
     "client": "nethermind",
     "match": "Corruption:",
     "class": "database-corrupt",
+    "severity": "critical",
+    "serving": false,
     "source": "https://docs.nethermind.io/fundamentals/database"
   },
   {
@@ -32,6 +40,8 @@
     "client": "erigon",
     "match": "MDBX_BUSY",
     "class": "database-lock",
+    "severity": "critical",
+    "serving": false,
     "source": "https://github.com/erigontech/erigon"
   },
   {
@@ -39,6 +49,8 @@
     "client": "besu",
     "match": "StorageException",
     "class": "database-corrupt",
+    "severity": "critical",
+    "serving": false,
     "source": "https://besu.hyperledger.org/public-networks/how-to/troubleshoot"
   },
   {
@@ -46,6 +58,8 @@
     "client": "reth",
     "match": "Database write error",
     "class": "database-corrupt",
+    "severity": "critical",
+    "serving": false,
     "source": "https://reth.rs/"
   },
   {
@@ -53,6 +67,8 @@
     "on": "execution",
     "match": "freezer table corrupted|database corrupted|checksum mismatch|ancient database corrupted",
     "class": "database-corrupt",
+    "severity": "critical",
+    "serving": false,
     "source": "https://github.com/ethereum/go-ethereum/blob/master/core/rawdb/freezer.go"
   },
   {
@@ -60,6 +76,8 @@
     "on": "execution",
     "match": "resource temporarily unavailable|database is locked|While lock file",
     "class": "database-lock",
+    "severity": "critical",
+    "serving": false,
     "source": "https://github.com/ethereum/go-ethereum/blob/master/core/rawdb/database.go"
   },
   {
@@ -67,6 +85,8 @@
     "on": "execution",
     "match": "no space left on device",
     "class": "disk-full",
+    "severity": "critical",
+    "serving": false,
     "source": "https://github.com/ethereum/go-ethereum/blob/master/core/rawdb/database.go"
   },
   {
@@ -74,6 +94,8 @@
     "on": "execution",
     "match": "permission denied",
     "class": "permission-denied",
+    "severity": "critical",
+    "serving": false,
     "source": "https://github.com/ethereum/go-ethereum/blob/master/core/rawdb/database.go"
   },
   {
@@ -81,6 +103,8 @@
     "on": "execution",
     "match": "context deadline exceeded",
     "class": "engine-timeout",
+    "severity": "warning",
+    "serving": true,
     "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/paris.md"
   },
   {
@@ -88,6 +112,8 @@
     "on": "execution",
     "match": "status=INVALID|invalid new payload",
     "class": "invalid-payload",
+    "severity": "warning",
+    "serving": true,
     "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/paris.md"
   },
   {
@@ -95,6 +121,8 @@
     "on": "execution",
     "match": "engine_\\w+ not supported|unsupported fork|capability mismatch",
     "class": "capability-mismatch",
+    "severity": "warning",
+    "serving": false,
     "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/cancun.md"
   },
   {
@@ -102,6 +130,8 @@
     "on": "execution",
     "match": "reason=banned|\\bpeer banned\\b|\\bbanned peer\\b",
     "class": "peer-banned",
+    "severity": "warning",
+    "serving": true,
     "source": "https://github.com/ethereum/go-ethereum/blob/master/p2p/dial.go"
   },
   {
@@ -109,6 +139,8 @@
     "on": "execution",
     "match": "discovery lookup failed|discovery failed",
     "class": "discovery-failed",
+    "severity": "warning",
+    "serving": true,
     "source": "https://github.com/ethereum/go-ethereum/blob/master/p2p/discover/lookup.go"
   },
   {
@@ -116,6 +148,8 @@
     "on": "execution",
     "match": "no peers",
     "class": "no-peers",
+    "severity": "warning",
+    "serving": false,
     "source": "https://github.com/ethereum/go-ethereum/blob/master/eth/downloader/downloader.go"
   },
   {
@@ -123,6 +157,8 @@
     "on": "execution",
     "match": "sync stalled|synchronisation stalled|stalling state sync",
     "class": "sync-stalled",
+    "severity": "warning",
+    "serving": false,
     "source": "https://github.com/ethereum/go-ethereum/blob/master/eth/downloader/downloader.go"
   },
   {
@@ -130,6 +166,8 @@
     "on": "execution",
     "match": "truncating ancient|rewinding blockchain",
     "class": "freezer-rewind",
+    "severity": "warning",
+    "serving": false,
     "source": "https://github.com/ethereum/go-ethereum/blob/master/core/rawdb/freezer.go"
   },
   {
@@ -137,6 +175,8 @@
     "on": "execution",
     "match": "jwt token validation failed|invalid jwt signature",
     "class": "jwt-rejected",
+    "severity": "critical",
+    "serving": false,
     "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/authentication.md"
   },
   {
@@ -144,6 +184,8 @@
     "client": "lighthouse",
     "match": "request to execution client timed out",
     "class": "engine-timeout",
+    "severity": "warning",
+    "serving": true,
     "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/paris.md"
   },
   {
@@ -151,6 +193,8 @@
     "client": "lighthouse",
     "match": "Missed attestation",
     "class": "missed-attestation",
+    "severity": "warning",
+    "serving": false,
     "source": "https://lighthouse-book.sigmaprime.io/faq.html"
   },
   {
@@ -158,6 +202,8 @@
     "client": "lighthouse",
     "match": "Doppelganger\\(s\\) detected",
     "class": "doppelganger",
+    "severity": "critical",
+    "serving": false,
     "source": "https://lighthouse-book.sigmaprime.io/validator_doppelganger.html"
   },
   {
@@ -165,6 +211,8 @@
     "client": "prysm",
     "match": "weak-subjectivity-checkpoint",
     "class": "weak-subjectivity",
+    "severity": "critical",
+    "serving": false,
     "source": "https://prysm.offchainlabs.com/docs/troubleshooting/"
   },
   {
@@ -172,6 +220,8 @@
     "client": "teku",
     "match": "External signer failed to sign",
     "class": "signer-refused",
+    "severity": "warning",
+    "serving": false,
     "source": "https://github.com/Consensys/teku/blob/master/validator/client/src/main/java/tech/pegasys/teku/validator/client/signer/ExternalSignerException.java"
   },
   {
@@ -179,6 +229,8 @@
     "client": "nimbus",
     "match": "Chain reorg",
     "class": "reorg",
+    "severity": "warning",
+    "serving": true,
     "source": "https://nimbus.guide/"
   },
   {
@@ -186,6 +238,8 @@
     "client": "lodestar",
     "match": "System clock is not in sync",
     "class": "clock-not-synced",
+    "severity": "warning",
+    "serving": true,
     "source": "https://chainsafe.github.io/lodestar/"
   },
   {
@@ -193,6 +247,8 @@
     "client": "web3signer",
     "match": "Failed to sign",
     "class": "signer-refused",
+    "severity": "warning",
+    "serving": false,
     "source": "https://docs.web3signer.consensys.io/development/how-to/monitor/metrics"
   },
   {
@@ -200,6 +256,8 @@
     "client": "mev-boost",
     "match": "error calling getHeader on relay",
     "class": "relay-timeout",
+    "severity": "warning",
+    "serving": true,
     "source": "https://github.com/ethereum/builder-specs/blob/main/specs/validator.md"
   },
   {
@@ -207,6 +265,8 @@
     "client": "mev-boost",
     "match": "builder timeout",
     "class": "builder-timeout",
+    "severity": "warning",
+    "serving": true,
     "source": "https://github.com/prysmaticlabs/prysm/issues/11490"
   },
   {
@@ -214,6 +274,8 @@
     "on": "consensus",
     "match": "missed attestation",
     "class": "missed-attestation",
+    "severity": "warning",
+    "serving": false,
     "source": "https://lighthouse-book.sigmaprime.io/faq.html"
   },
   {
@@ -221,6 +283,8 @@
     "on": "validator",
     "match": "missed attestation",
     "class": "missed-attestation",
+    "severity": "warning",
+    "serving": false,
     "source": "https://lighthouse-book.sigmaprime.io/faq.html"
   },
   {
@@ -228,6 +292,8 @@
     "on": "consensus",
     "match": "missed block proposal|missed proposal",
     "class": "missed-proposal",
+    "severity": "warning",
+    "serving": true,
     "source": "https://github.com/sigp/lighthouse/issues/5437"
   },
   {
@@ -235,6 +301,8 @@
     "on": "validator",
     "match": "missed block proposal|missed proposal",
     "class": "missed-proposal",
+    "severity": "warning",
+    "serving": true,
     "source": "https://github.com/sigp/lighthouse/issues/5437"
   },
   {
@@ -242,6 +310,8 @@
     "on": "consensus",
     "match": "checkpoint sync failed|refusing to checkpoint sync",
     "class": "checkpoint-sync-failed",
+    "severity": "critical",
+    "serving": false,
     "source": "https://lighthouse-book.sigmaprime.io/checkpoint-sync.html"
   },
   {
@@ -249,6 +319,8 @@
     "on": "consensus",
     "match": "weak subjectivity|weak-subjectivity",
     "class": "weak-subjectivity",
+    "severity": "critical",
+    "serving": false,
     "source": "https://ethereum.github.io/consensus-specs/specs/phase0/weak-subjectivity/"
   },
   {
@@ -256,6 +328,8 @@
     "on": "consensus",
     "match": "fork choice error|fork choice failed",
     "class": "fork-choice",
+    "severity": "warning",
+    "serving": false,
     "source": "https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/fork-choice.md"
   },
   {
@@ -263,6 +337,8 @@
     "on": "consensus",
     "match": "chain re-org|chain reorg",
     "class": "reorg",
+    "severity": "warning",
+    "serving": true,
     "source": "https://lighthouse-book.sigmaprime.io/faq.html"
   },
   {
@@ -270,6 +346,8 @@
     "on": "consensus",
     "match": "system clock",
     "class": "clock-not-synced",
+    "severity": "warning",
+    "serving": true,
     "source": "https://github.com/sigp/lighthouse/issues/2357"
   },
   {
@@ -277,6 +355,8 @@
     "on": "validator",
     "match": "doppelganger",
     "class": "doppelganger",
+    "severity": "critical",
+    "serving": false,
     "source": "https://lighthouse-book.sigmaprime.io/validator_doppelganger.html"
   },
   {
@@ -284,6 +364,8 @@
     "on": "validator",
     "match": "signer timed out|signer timeout",
     "class": "signer-timeout",
+    "severity": "warning",
+    "serving": false,
     "source": "https://docs.web3signer.consensys.io/how-to/run-at-scale"
   },
   {
@@ -291,13 +373,26 @@
     "on": "validator",
     "match": "refused to sign|failed to sign|status code: 403",
     "class": "signer-refused",
+    "severity": "warning",
+    "serving": false,
     "source": "https://docs.web3signer.consensys.io/development/how-to/monitor/metrics"
+  },
+  {
+    "id": "validator-slashable",
+    "on": "validator",
+    "match": "slashable attestation|slashable proposal|slashable block",
+    "class": "slashable",
+    "severity": "critical",
+    "serving": false,
+    "source": "https://lighthouse-book.sigmaprime.io/slashing-protection.html"
   },
   {
     "id": "builder-relay-timeout",
     "on": "builder",
     "match": "error calling getHeader on relay|no successful getHeader response",
     "class": "relay-timeout",
+    "severity": "warning",
+    "serving": true,
     "source": "https://github.com/ethereum/builder-specs/blob/main/specs/validator.md"
   },
   {
@@ -305,6 +400,8 @@
     "on": "builder",
     "match": "builder timeout",
     "class": "builder-timeout",
+    "severity": "warning",
+    "serving": true,
     "source": "https://github.com/prysmaticlabs/prysm/issues/11490"
   },
   {
@@ -312,6 +409,8 @@
     "on": "kubernetes",
     "match": "\\bOOMKilled\\b",
     "class": "oom-killed",
+    "severity": "critical",
+    "serving": false,
     "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
   },
   {
@@ -319,6 +418,8 @@
     "on": "kubernetes",
     "match": "\\bUnhealthy\\b",
     "class": "probe-failed",
+    "severity": "warning",
+    "serving": true,
     "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/"
   },
   {
@@ -326,6 +427,8 @@
     "on": "kubernetes",
     "match": "\\bKilling\\b",
     "class": "killed-externally",
+    "severity": "critical",
+    "serving": false,
     "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/"
   },
   {
@@ -333,6 +436,8 @@
     "on": "kubernetes",
     "match": "\\bNodeHasInsufficientMemory\\b",
     "class": "memory-pressure",
+    "severity": "warning",
+    "serving": false,
     "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
   },
   {
@@ -340,6 +445,8 @@
     "on": "kubernetes",
     "match": "\\bInsufficient cpu\\b",
     "class": "cpu-pressure",
+    "severity": "warning",
+    "serving": false,
     "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/"
   },
   {
@@ -347,6 +454,8 @@
     "on": "kubernetes",
     "match": "\\bNodeHasDiskPressure\\b",
     "class": "disk-pressure",
+    "severity": "warning",
+    "serving": false,
     "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
   },
   {
@@ -354,6 +463,8 @@
     "on": "kubernetes",
     "match": "\\bEvicted\\b",
     "class": "evicted",
+    "severity": "critical",
+    "serving": false,
     "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
   },
   {
@@ -361,6 +472,8 @@
     "on": "kubernetes",
     "match": "\\bBackOff\\b|CrashLoopBackOff",
     "class": "crash-loop",
+    "severity": "critical",
+    "serving": false,
     "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-restarts"
   },
   {
@@ -368,6 +481,8 @@
     "on": "kubernetes",
     "match": "\\bFailedMount\\b",
     "class": "volume-mount-failed",
+    "severity": "critical",
+    "serving": false,
     "source": "https://kubernetes.io/docs/concepts/storage/volumes/"
   },
   {
@@ -375,6 +490,8 @@
     "on": "kubernetes",
     "match": "\\bNodeNotReady\\b",
     "class": "node-not-ready",
+    "severity": "critical",
+    "serving": false,
     "source": "https://kubernetes.io/docs/concepts/architecture/nodes/#condition"
   }
 ]

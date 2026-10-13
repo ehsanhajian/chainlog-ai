@@ -3,3 +3,4 @@
 2026-10-08 06:14:00.300+00:00 | main | WARN  | Doppelganger | Doppelganger detection found a live validator
 2026-10-08 06:14:20.000+00:00 | main | ERROR | Signing | External signer timed out
 2026-10-08 06:14:21.000+00:00 | main | ERROR | Signing | External signer refused to sign
+2026-10-08 06:14:22.000+00:00 | main | ERROR | Signing | Slashable attestation prevented

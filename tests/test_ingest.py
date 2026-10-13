@@ -278,7 +278,7 @@ def test_example_logs_open_a_case(home: Path) -> None:
     assert counts == {
         "execution": 20,
         "consensus": 13,
-        "validator": 11,
+        "validator": 12,
         "builder": 7,
         "kubernetes": 10,
     }
