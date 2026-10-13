@@ -47,6 +47,8 @@ def test_events_record_pod_container_namespace_and_reason(home: Path) -> None:
         "FailedMount",
         "FailedScheduling",
         "NodeHasDiskPressure",
+        "NodeHasInsufficientMemory",
+        "NodeNotReady",
     }
     pod_events = [event for event in events if event.pod == "geth-0"]
     assert pod_events
