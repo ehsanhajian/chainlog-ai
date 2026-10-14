@@ -9,6 +9,7 @@ from chainlog_ai import __version__
 from chainlog_ai.case import CaseError, CaseNotFoundError, Event, load_case
 from chainlog_ai.classify import CatalogError, classify_case
 from chainlog_ai.ingest import SOURCES, InputError, ingest
+from chainlog_ai.timeline import TimelineError, render_timeline
 
 
 class _ClientInput(argparse.Action):
@@ -199,6 +200,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     classify_parser.set_defaults(func=_cmd_classify)
 
+    timeline_parser = commands.add_parser(
+        "timeline",
+        help="What happened, in order?",
+        description=(
+            "Print a local case in time order across every source. "
+            "--since and --until narrow the window. "
+            "Rows that share a timestamp stay in source order: "
+            "cluster, execution, consensus, validator, builder."
+        ),
+    )
+    timeline_parser.add_argument("--case", required=True, help="Case id printed by ingest")
+    timeline_parser.add_argument("--since", help="Include events at or after this UTC time")
+    timeline_parser.add_argument("--until", help="Include events at or before this UTC time")
+    timeline_parser.set_defaults(func=_cmd_timeline)
+
     why_parser = commands.add_parser(
         "why",
         help="Why did it fail?",
@@ -271,6 +287,20 @@ def _cmd_classify(args: argparse.Namespace) -> int:
         print(exc, file=sys.stderr)
         return 3
     except (CaseError, CatalogError) as exc:
+        print(exc, file=sys.stderr)
+        return 3
+    print(text)
+    return 0
+
+
+def _cmd_timeline(args: argparse.Namespace) -> int:
+    try:
+        case = load_case(args.case)
+        text = render_timeline(case, since=args.since, until=args.until)
+    except CaseNotFoundError as exc:
+        print(exc, file=sys.stderr)
+        return 3
+    except (CaseError, TimelineError) as exc:
         print(exc, file=sys.stderr)
         return 3
     print(text)
