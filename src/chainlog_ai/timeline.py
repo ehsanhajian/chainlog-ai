@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 from chainlog_ai.case import Case, Event
+from chainlog_ai.consensus import consensus_fields
 
 # More than a few seconds between a client clock and a cluster event.
+# A missing slot is filled from a consensus line inside this same window.
 CLOCK_GAP = timedelta(seconds=5)
 
 _SOURCE_ORDER = {
@@ -25,6 +28,16 @@ class TimelineError(Exception):
     """The timeline window cannot be used."""
 
 
+@dataclass
+class _Row:
+    event: Event
+    index: int
+    slot: int | None
+    epoch: int | None
+    block: str | None
+    inferred: bool
+
+
 def render_timeline(case: Case, *, since: str | None = None, until: str | None = None) -> str:
     """Return the case in time order. ``since`` and ``until`` are inclusive."""
 
@@ -32,31 +45,81 @@ def render_timeline(case: Case, *, since: str | None = None, until: str | None =
     end = _bound(until, "--until")
     if start is not None and end is not None and start > end:
         raise TimelineError("--since is after --until")
-    rows = _ordered(case.events, start, end)
+    aligned = _align(case.events)
+    visible = [row for row in aligned if _in_window(row.event, start, end)]
+    if start is not None or end is not None:
+        visible = [row for row in visible if row.event.time is not None]
     lines = [f"case {case.id}"]
     previous: Event | None = None
-    for event in rows:
-        gap = _clock_gap(previous, event)
+    for row in _order_rows(visible):
+        gap = _clock_gap(previous, row.event)
         if gap is not None:
             lines.append(gap)
-        lines.append(_row(event))
-        previous = event
+        lines.append(_row(row))
+        previous = row.event
     return "\n".join(lines)
 
 
-def _ordered(
-    events: list[Event],
-    start: datetime | None,
-    end: datetime | None,
-) -> list[Event]:
-    windowed = [event for event in events if _in_window(event, start, end)]
-    timed = [event for event in windowed if event.time is not None]
-    undated = [event for event in windowed if event.time is None]
-    if start is None and end is None:
-        ranked = timed + undated
-    else:
-        ranked = timed
-    return sorted(ranked, key=lambda event: _sort_key(event, events))
+def _align(events: list[Event]) -> list[_Row]:
+    rows: list[_Row] = []
+    for index, event in enumerate(events):
+        slot, epoch, block = consensus_fields(event.excerpt)
+        if slot is None:
+            slot = event.slot
+        if epoch is None:
+            epoch = event.epoch
+        if block is None:
+            block = event.block
+        rows.append(_Row(event, index, slot, epoch, block, False))
+    for row in rows:
+        if row.slot is not None:
+            continue
+        nearby = _nearby_consensus_slots(row, rows)
+        if len(nearby) == 1:
+            row.slot = next(iter(nearby))
+            row.inferred = True
+    return rows
+
+
+def _nearby_consensus_slots(row: _Row, rows: list[_Row]) -> set[int]:
+    stamp = _event_time(row.event)
+    if stamp is None:
+        return set()
+    found: set[int] = set()
+    for other in rows:
+        if other.event.source != "consensus" or other.slot is None or other.inferred:
+            continue
+        other_stamp = _event_time(other.event)
+        if other_stamp is None:
+            continue
+        if abs(other_stamp - stamp) <= CLOCK_GAP:
+            found.add(other.slot)
+    return found
+
+
+def _order_rows(rows: list[_Row]) -> list[_Row]:
+    anchors: dict[int, datetime] = {}
+    for row in rows:
+        if row.slot is None:
+            continue
+        stamp = _event_time(row.event)
+        if stamp is None:
+            continue
+        current = anchors.get(row.slot)
+        anchors[row.slot] = stamp if current is None else min(current, stamp)
+    return sorted(rows, key=lambda row: _row_key(row, anchors))
+
+
+def _row_key(row: _Row, anchors: dict[int, datetime]) -> tuple[datetime, int, int, datetime, int, int]:
+    stamp = _event_time(row.event) or datetime.max.replace(tzinfo=timezone.utc)
+    if row.slot is None:
+        return (stamp, 1, 0, stamp, _source_rank(row.event), row.index)
+    anchor = anchors.get(row.slot, stamp)
+    return (anchor, 0, row.slot, stamp, _source_rank(row.event), row.index)
+
+
+def _source_rank(event: Event) -> int:
+    return _SOURCE_ORDER.get(event.source, len(_SOURCE_ORDER))
 
 
 def _in_window(event: Event, start: datetime | None, end: datetime | None) -> bool:
@@ -77,11 +140,29 @@ def _sort_key(event: Event, events: list[Event]) -> tuple[datetime, int, int]:
     return (stamp, _SOURCE_ORDER.get(event.source, len(_SOURCE_ORDER)), events.index(event))
 
 
-def _row(event: Event) -> str:
+def _row(row: _Row) -> str:
+    event = row.event
     when = event.time or "-"
     client = event.client or "-"
     kind = event.failure_class or "unclassified"
+    fields = _chain_fields(row)
+    if fields:
+        return f"{when} {event.source} {client} {kind} {fields} {event.excerpt}"
     return f"{when} {event.source} {client} {kind} {event.excerpt}"
+
+
+def _chain_fields(row: _Row) -> str:
+    parts: list[str] = []
+    if row.slot is not None:
+        slot = f"slot={row.slot}"
+        if row.inferred:
+            slot += " inferred"
+        parts.append(slot)
+    if row.epoch is not None:
+        parts.append(f"epoch={row.epoch}")
+    if row.block is not None:
+        parts.append(f"block={row.block}")
+    return " ".join(parts)
 
 
 def _clock_gap(previous: Event | None, event: Event) -> str | None:
