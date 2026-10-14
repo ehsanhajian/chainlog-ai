@@ -6,7 +6,7 @@ It reads the logs an operator already has — execution clients, consensus clien
 
 chainlog-ai does not restart a client, edit a manifest, scrape a cluster, or sign with a validator key.
 
-Work is tracked in [milestones](https://github.com/ehsanhajian/chainlog-ai/milestones). `ingest` writes a case on this machine. `classify --case` labels events from the rule catalog and prints the counts. A line with no matching rule stays in the case, unclassified. Each labeled event has a severity (`info`, `warning`, or `critical`) and whether the client was still serving. The rule sets that default. A later synced head or published attestation shows that serving resumed. Doppelganger detection and a slashable attestation or proposal are critical. Every rule cites a source. Classify does not call a model. `why --case` accepts the id that `ingest` prints. Stating a cause comes later.
+Work is tracked in [milestones](https://github.com/ehsanhajian/chainlog-ai/milestones). `ingest` writes a case on this machine. `classify --case` labels events from the rule catalog and prints the counts. A line with no matching rule stays in the case, unclassified. Each labeled event has a severity (`info`, `warning`, or `critical`) and whether the client was still serving. The rule sets that default. A later synced head or published attestation shows that serving resumed. Doppelganger detection and a slashable attestation or proposal are critical. Every rule cites a source. Classify does not call a model. `timeline --case` prints that case in time order. `--since` and `--until` narrow the window. Rows that share a timestamp stay in source order: cluster, execution, consensus, validator, builder. A gap of more than five seconds between a client clock and a cluster event is called out. `why --case` accepts the id that `ingest` prints. Stating a cause comes later.
 
 ## Command
 
@@ -62,6 +62,8 @@ chainlog-ai ingest --case incident \
   --builder examples/mev-boost.log \
   --kube examples/events.json
 chainlog-ai classify --case incident
+chainlog-ai timeline --case incident
+chainlog-ai timeline --case incident --since 2026-10-08T06:13:40Z --until 2026-10-08T06:14:12Z
 chainlog-ai ingest --case execution-rules --execution examples/nethermind.log
 chainlog-ai classify --case execution-rules
 chainlog-ai ingest --case consensus-rules \
