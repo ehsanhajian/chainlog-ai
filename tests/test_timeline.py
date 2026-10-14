@@ -1,6 +1,5 @@
 import contextlib
 import io
-from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -35,6 +34,9 @@ def _event(
     time: str | None,
     client: str | None = None,
     failure_class: str | None = None,
+    slot: int | None = None,
+    epoch: int | None = None,
+    block: str | None = None,
 ) -> Event:
     return Event(
         source=source,
@@ -45,6 +47,9 @@ def _event(
         excerpt=excerpt,
         time=time,
         failure_class=failure_class,
+        slot=slot,
+        epoch=epoch,
+        block=block,
     )
 
 
@@ -73,6 +78,97 @@ def test_same_timestamp_stays_in_source_order() -> None:
     ]
     assert lines[0].startswith(f"{stamp} kubernetes - oom-killed ")
     assert "clock gap " not in render_timeline(case)
+
+
+def test_a_row_shows_the_slot_epoch_and_block_the_line_prints() -> None:
+    case = Case(
+        id="fields",
+        events=[
+            _event(
+                "consensus",
+                "Synced slot: 10274304, epoch: 321072, block: 0xabab",
+                time="2026-10-08T06:12:00.102Z",
+                client="lighthouse",
+            ),
+            _event(
+                "validator",
+                "Successfully published attestation slot: 10274304",
+                time="2026-10-08T06:12:00.180Z",
+                client="lighthouse",
+            ),
+            _event(
+                "consensus",
+                "head advanced",
+                time="2026-10-08T06:12:01Z",
+                client="lighthouse",
+                slot=8,
+                epoch=1,
+                block="0xcd",
+            ),
+        ],
+    )
+    text = render_timeline(case)
+    assert "slot=10274304 epoch=321072 block=0xabab" in text
+    assert "slot=10274304 inferred" not in text
+    assert "slot=8 epoch=1 block=0xcd" in text
+    published = next(line for line in text.splitlines() if "Successfully published" in line)
+    assert "slot=10274304" in published
+    assert "epoch=" not in published
+    assert "inferred" not in published
+
+
+def test_a_missing_slot_is_inferred_and_rows_in_that_slot_stay_together() -> None:
+    case = Case(
+        id="group",
+        events=[
+            _event("execution", "early head", time="2026-10-08T06:12:00Z", client="geth"),
+            _event(
+                "consensus",
+                "Synced slot: 10, epoch: 2, block: 0xaaaa",
+                time="2026-10-08T06:13:58.900Z",
+                client="lighthouse",
+            ),
+            _event("execution", "leveldb: closed", time="2026-10-08T06:13:58.883Z", client="geth"),
+            _event("builder", "getHeader slot=10", time="2026-10-08T06:14:00Z", client="mev-boost"),
+            _event("validator", "later duty", time="2026-10-08T06:14:20Z", client="lighthouse"),
+            _event(
+                "consensus",
+                "Missed attestation slot: 11",
+                time="2026-10-08T06:14:20.010Z",
+                client="lighthouse",
+            ),
+        ],
+    )
+    rows = [line for line in render_timeline(case).splitlines()[1:] if not line.startswith("clock gap ")]
+    closed = next(line for line in rows if "leveldb: closed" in line)
+    assert "slot=10 inferred" in closed
+    assert "epoch=" not in closed
+    assert "block=" not in closed
+    header = next(line for line in rows if "getHeader" in line)
+    assert "slot=10" in header
+    assert "inferred" not in header
+    slots = ["slot=10" in line for line in rows]
+    first = slots.index(True)
+    last = len(slots) - 1 - slots[::-1].index(True)
+    assert all(slots[first : last + 1])
+    assert rows[first].split()[1] == "execution"
+    assert "leveldb: closed" in rows[first]
+
+
+def test_disagreeing_consensus_lines_leave_the_slot_blank() -> None:
+    case = Case(
+        id="disagree",
+        events=[
+            _event("consensus", "Synced slot: 1", time="2026-10-08T06:14:00Z", client="lighthouse"),
+            _event("execution", "no slot here", time="2026-10-08T06:14:02Z", client="geth"),
+            _event("consensus", "Synced slot: 2", time="2026-10-08T06:14:04Z", client="lighthouse"),
+        ],
+    )
+    text = render_timeline(case)
+    blank = next(line for line in text.splitlines() if "no slot here" in line)
+    assert "slot=" not in blank
+    assert "slot=1" in text
+    assert "slot=2" in text
 
 
 def test_clock_gap_is_called_out_only_between_a_client_and_the_cluster() -> None:
@@ -136,13 +232,15 @@ def test_example_incident_timeline(home: Path) -> None:
     assert "unclassified" in stdout
     assert "hunter2" not in stdout
     assert "[redacted]" in stdout
+    assert "slot=10274304 epoch=321072 block=0xabababababababab" in stdout
+    assert "slot=10274310 inferred" in stdout
     rows = [line for line in stdout.splitlines()[1:] if not line.startswith("clock gap ")]
-    times = [
-        datetime.fromisoformat(line.split()[0].replace("Z", "+00:00"))
-        for line in rows
-        if line.split()[0] != "-"
-    ]
-    assert times == sorted(times)
+    slot_rows = [line for line in rows if "slot=10274310" in line]
+    assert slot_rows
+    assert rows.index(slot_rows[0]) + len(slot_rows) - 1 == rows.index(slot_rows[-1])
+    printed = next(line for line in rows if "Missed attestation" in line and "consensus" in line)
+    assert "slot=10274310" in printed
+    assert "inferred" not in printed
     assert any("clock gap " in line for line in stdout.splitlines())
 
     code, stdout, stderr = run("classify", "--case", "incident")
@@ -158,6 +256,7 @@ def test_example_incident_timeline(home: Path) -> None:
     )
     assert code == 0, stderr
     assert "database-closed" in stdout
+    assert "slot=10274310 inferred" in stdout
     assert "Starting Geth" not in stdout
     assert "Slashable attestation" not in stdout
     assert "hunter2" not in stdout
