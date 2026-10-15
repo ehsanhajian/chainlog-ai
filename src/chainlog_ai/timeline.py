@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -22,6 +23,20 @@ _SOURCE_ORDER = {
 }
 _CLUSTER = {"kubernetes", "kubernetes-previous"}
 _CLIENTS = {"execution", "consensus", "validator", "builder"}
+_HEALTHY = re.compile(
+    r"successfully published attestation|submitted new attestation|\bpublished attestation\b"
+    r"|attestation included|successfully published block|\bproposed block\b",
+    re.IGNORECASE,
+)
+_MISS = re.compile(r"missed attestation|missed block proposal|missed proposal", re.IGNORECASE)
+_ENGINE_FAILURE = re.compile(
+    r"request to execution client timed out|engine api[^\n]*context deadline exceeded"
+    r"|newpayload[^\n]*context deadline exceeded|status=invalid|engine_\w+ not supported",
+    re.IGNORECASE,
+)
+_ENGINE_CLASSES = {"engine-timeout", "invalid-payload", "capability-mismatch"}
+_PROCESS_EXIT = re.compile(r"\boomkilled\b|\bkilling\b|\bevicted\b|shutting down|process exited", re.IGNORECASE)
+_EXIT_CLASSES = {"oom-killed", "killed-externally", "evicted", "crash-loop"}
 
 
 class TimelineError(Exception):
@@ -49,7 +64,7 @@ def render_timeline(case: Case, *, since: str | None = None, until: str | None =
     visible = [row for row in aligned if _in_window(row.event, start, end)]
     if start is not None or end is not None:
         visible = [row for row in visible if row.event.time is not None]
-    lines = [f"case {case.id}"]
+    lines = [f"case {case.id}", *_boundary(aligned)]
     previous: Event | None = None
     for row in _order_rows(visible):
         gap = _clock_gap(previous, row.event)
@@ -58,6 +73,57 @@ def render_timeline(case: Case, *, since: str | None = None, until: str | None =
         lines.append(_row(row))
         previous = row.event
     return "\n".join(lines)
+
+
+def _boundary(rows: list[_Row]) -> list[str]:
+    """Name the last attested or proposed slot and the first bad slot."""
+
+    healthy = [row for row in rows if _is_healthy(row)]
+    misses = [row for row in rows if _is_miss(row)]
+    if not healthy and not misses:
+        return ["boundary unknown"]
+    bad = [row for row in rows if _is_bad(row)]
+    last = _latest_slot(healthy)
+    first = _earliest_slot(bad)
+    last_text = "unknown" if last is None else str(last)
+    first_text = "unknown" if first is None else str(first)
+    return [f"last healthy slot {last_text}", f"first bad slot {first_text}"]
+
+
+def _is_healthy(row: _Row) -> bool:
+    return _HEALTHY.search(row.event.excerpt) is not None
+
+
+def _is_miss(row: _Row) -> bool:
+    return _MISS.search(row.event.excerpt) is not None
+
+
+def _is_bad(row: _Row) -> bool:
+    event = row.event
+    if _is_miss(row):
+        return True
+    if event.failure_class in _ENGINE_CLASSES or _ENGINE_FAILURE.search(event.excerpt):
+        return True
+    return event.failure_class in _EXIT_CLASSES or _PROCESS_EXIT.search(event.excerpt) is not None
+
+
+def _latest_slot(rows: list[_Row]) -> int | None:
+    slots = [row.slot for row in rows if row.slot is not None]
+    if not slots:
+        return None
+    return max(slots)
+
+
+def _earliest_slot(rows: list[_Row]) -> int | None:
+    if not rows:
+        return None
+    first = min(rows, key=_bad_order)
+    return first.slot
+
+
+def _bad_order(row: _Row) -> tuple[bool, datetime, int, int]:
+    stamp = _event_time(row.event)
+    return (stamp is None, stamp or datetime.max.replace(tzinfo=timezone.utc), _source_rank(row.event), row.index)
 
 
 def _align(events: list[Event]) -> list[_Row]:
