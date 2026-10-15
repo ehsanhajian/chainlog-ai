@@ -66,7 +66,7 @@ def test_same_timestamp_stays_in_source_order() -> None:
             _event("kubernetes", "OOMKilled: memory", time=stamp, failure_class="oom-killed"),
         ],
     )
-    lines = render_timeline(case).splitlines()[1:]
+    lines = [line for line in render_timeline(case).splitlines() if line.startswith(stamp)]
     sources = [line.split()[1] for line in lines]
     assert sources == [
         "kubernetes",
@@ -171,6 +171,58 @@ def test_disagreeing_consensus_lines_leave_the_slot_blank() -> None:
     assert "slot=2" in text
 
 
+def test_the_timeline_names_the_last_healthy_slot_and_the_first_bad_slot() -> None:
+    case = Case(
+        id="boundary",
+        events=[
+            _event("execution", "INFO Starting Geth on Ethereum mainnet version", time="2026-10-08T06:00:00Z", client="geth"),
+            _event(
+                "validator",
+                "Successfully published attestation slot: 4",
+                time="2026-10-08T06:12:00Z",
+                client="lighthouse",
+            ),
+            _event("kubernetes", "OOMKilled: memory", time="2026-10-08T06:13:54Z", failure_class="oom-killed"),
+            _event(
+                "consensus",
+                "request to execution client timed out slot: 9",
+                time="2026-10-08T06:13:58Z",
+                client="lighthouse",
+            ),
+            _event(
+                "consensus",
+                "Missed attestation slot: 10",
+                time="2026-10-08T06:14:00Z",
+                client="lighthouse",
+            ),
+            _event(
+                "validator",
+                "Successfully published attestation slot: 11",
+                time="2026-10-08T06:14:12Z",
+                client="lighthouse",
+            ),
+        ],
+    )
+    lines = render_timeline(case).splitlines()
+    assert lines[1] == "last healthy slot 11"
+    assert lines[2] == "first bad slot 9"
+    assert any("Starting Geth" in line and line.split()[0] == "2026-10-08T06:00:00Z" for line in lines)
+
+
+def test_a_case_without_duty_lines_says_the_boundary_is_unknown() -> None:
+    case = Case(
+        id="quiet",
+        events=[
+            _event("execution", "INFO Starting Geth version", time="2026-10-08T06:00:00Z", client="geth"),
+            _event("execution", "Chain head updated", time="2026-10-08T06:12:00Z", client="geth"),
+        ],
+    )
+    text = render_timeline(case)
+    assert "boundary unknown" in text
+    assert "last healthy slot" not in text
+    assert "Starting Geth" in text
+
+
 def test_clock_gap_is_called_out_only_between_a_client_and_the_cluster() -> None:
     case = Case(
         id="gap",
@@ -229,6 +281,9 @@ def test_example_incident_timeline(home: Path) -> None:
     code, stdout, stderr = run("timeline", "--case", "incident")
     assert code == 0, stderr
     assert stdout.startswith("case incident\n")
+    assert "last healthy slot 10274311\n" in stdout
+    assert "first bad slot 10274310\n" in stdout
+    assert "Starting Geth" in stdout
     assert "unclassified" in stdout
     assert "hunter2" not in stdout
     assert "[redacted]" in stdout
