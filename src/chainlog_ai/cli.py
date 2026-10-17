@@ -210,7 +210,8 @@ def build_parser() -> argparse.ArgumentParser:
             "cluster, execution, consensus, validator, builder. "
             "A row shows the slot, epoch, and block printed on the line. "
             "A missing slot is filled from a consensus line in the same few seconds. "
-            "The timeline names the last healthy slot and the first bad slot."
+            "The timeline names the last healthy slot and the first bad slot. "
+            "An execution engine error is paired with the consensus line that requested the payload."
         ),
     )
     timeline_parser.add_argument("--case", required=True, help="Case id printed by ingest")
