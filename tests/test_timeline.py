@@ -1,11 +1,16 @@
 import contextlib
 import io
+import os
+import re
+import shutil
+import sys
+from argparse import Namespace
 from pathlib import Path
 
 import pytest
 
 from chainlog_ai.case import Case, Event
-from chainlog_ai.cli import main
+from chainlog_ai.cli import _cmd_timeline, main
 from chainlog_ai.timeline import TimelineError, render_timeline
 
 
@@ -34,6 +39,7 @@ def _event(
     time: str | None,
     client: str | None = None,
     failure_class: str | None = None,
+    severity: str | None = None,
     slot: int | None = None,
     epoch: int | None = None,
     block: str | None = None,
@@ -47,6 +53,7 @@ def _event(
         excerpt=excerpt,
         time=time,
         failure_class=failure_class,
+        severity=severity,
         slot=slot,
         epoch=epoch,
         block=block,
@@ -301,6 +308,66 @@ def test_an_engine_error_with_no_consensus_line_stays_unpaired() -> None:
     assert text.count("engine error unpaired") == 2
 
 
+def _colored_case() -> Case:
+    return Case(
+        id="color",
+        events=[
+            _event(
+                "execution",
+                "Imported new chain segment",
+                time="2026-10-08T06:00:00Z",
+                client="geth",
+                failure_class="sync-stalled",
+                severity="info",
+            ),
+            _event(
+                "kubernetes",
+                "mount failed password=[redacted]",
+                time="2026-10-08T06:10:00Z",
+                failure_class="volume-mount-failed",
+                severity="critical",
+            ),
+            _event(
+                "consensus",
+                "Missed attestation slot: 10",
+                time="2026-10-08T06:10:01Z",
+                client="lighthouse",
+                failure_class="missed-attestation",
+                severity="warning",
+            ),
+        ],
+    )
+
+
+def test_a_terminal_colors_severity_source_clock_gap_and_redacted_text() -> None:
+    text = render_timeline(_colored_case(), color=True, width=200)
+    assert "\033[36mexecution\033[0m" in text
+    assert "\033[34mkubernetes\033[0m" in text
+    assert "\033[32msync-stalled\033[0m" in text
+    assert "\033[33mmissed-attestation\033[0m" in text
+    assert "\033[31mvolume-mount-failed\033[0m" in text
+    assert "password=\033[1;31m[redacted]\033[0m" in text
+    assert "\033[1;33mclock gap 600s between execution and kubernetes\033[0m" in text
+    plain = re.sub(r"\033\[[0-9;]*m", "", text)
+    assert "password=[redacted]" in plain
+    assert "\033" not in render_timeline(_colored_case())
+
+
+def test_a_narrow_terminal_puts_the_excerpt_on_the_next_line() -> None:
+    case = _colored_case()
+    text = render_timeline(case, color=True, width=40)
+    plain = re.sub(r"\033\[[0-9;]*m", "", text)
+    lines = plain.splitlines()
+    head = next(line for line in lines if "volume-mount-failed" in line)
+    excerpt = lines[lines.index(head) + 1]
+    assert "password=" not in head
+    assert excerpt == "  mount failed password=[redacted]"
+    wide = re.sub(r"\033\[[0-9;]*m", "", render_timeline(case, color=True, width=200))
+    assert any(line.endswith("mount failed password=[redacted]") and not line.startswith(" ") for line in wide.splitlines())
+    sources = [line.split()[1] for line in lines if line[:4].isdigit()]
+    assert sources == ["execution", "kubernetes", "consensus"]
+
+
 def test_clock_gap_is_called_out_only_between_a_client_and_the_cluster() -> None:
     case = Case(
         id="gap",
@@ -359,6 +426,7 @@ def test_example_incident_timeline(home: Path) -> None:
     code, stdout, stderr = run("timeline", "--case", "incident")
     assert code == 0, stderr
     assert stdout.startswith("case incident\n")
+    assert "\033" not in stdout
     assert "last healthy slot 10274311\n" in stdout
     assert "first bad slot 10274310\n" in stdout
     assert "engine pair slot=10274310 payload=0x9f3a" in stdout
@@ -390,6 +458,7 @@ def test_example_incident_timeline(home: Path) -> None:
         "2026-10-08T06:14:00Z",
     )
     assert code == 0, stderr
+    assert "\033" not in stdout
     assert "database-closed" in stdout
     assert "slot=10274310 inferred" in stdout
     assert "Starting Geth" not in stdout
@@ -401,6 +470,36 @@ def test_a_reversed_window_is_rejected() -> None:
     case = Case(id="window", events=[_event("execution", "inside", time="2026-10-08T06:13:58Z", client="geth")])
     with pytest.raises(TimelineError, match="after --until"):
         render_timeline(case, since="2026-10-08T06:14:00Z", until="2026-10-08T06:13:00Z")
+
+
+class _Tty(io.StringIO):
+    def isatty(self) -> bool:
+        return True
+
+
+def test_the_timeline_command_colors_a_terminal(home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = Path(__file__).parents[1] / "examples"
+    code, _stdout, stderr = run(
+        "ingest",
+        "--case",
+        "incident",
+        "--execution",
+        str(root / "geth.log"),
+        "--consensus",
+        str(root / "beacon.log"),
+        "--kube",
+        str(root / "events.json"),
+    )
+    assert code == 0, stderr
+    buf = _Tty()
+    monkeypatch.setattr(sys, "stdout", buf)
+    monkeypatch.setattr(shutil, "get_terminal_size", lambda fallback=(80, 24): os.terminal_size((32, 24)))
+    code = _cmd_timeline(Namespace(case="incident", since=None, until=None))
+    assert code == 0
+    text = buf.getvalue()
+    assert "password=\033[1;31m[redacted]\033[0m" in text
+    plain = re.sub(r"\033\[[0-9;]*m", "", text)
+    assert any(line.startswith("  ") and "password=[redacted]" in line for line in plain.splitlines())
 
 
 def test_unknown_case_and_bad_window_are_usage_errors(home: Path) -> None:
