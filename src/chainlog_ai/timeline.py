@@ -35,6 +35,14 @@ _ENGINE_FAILURE = re.compile(
     re.IGNORECASE,
 )
 _ENGINE_CLASSES = {"engine-timeout", "invalid-payload", "capability-mismatch"}
+_PAYLOAD_REQUEST = re.compile(
+    r"request to execution client timed out|processing payload|forkchoiceupdated|engine_newpayload",
+    re.IGNORECASE,
+)
+_PAYLOAD_ID = re.compile(
+    r"(?:payload(?:[\s_-]*id)?|(?<![A-Za-z])id)\s*[:=]\s*(0x[0-9a-fA-F]+)",
+    re.IGNORECASE,
+)
 _PROCESS_EXIT = re.compile(r"\boomkilled\b|\bkilling\b|\bevicted\b|shutting down|process exited", re.IGNORECASE)
 _EXIT_CLASSES = {"oom-killed", "killed-externally", "evicted", "crash-loop"}
 
@@ -65,11 +73,19 @@ def render_timeline(case: Case, *, since: str | None = None, until: str | None =
     if start is not None or end is not None:
         visible = [row for row in visible if row.event.time is not None]
     lines = [f"case {case.id}", *_boundary(aligned)]
+    ordered = _order_rows(visible)
+    pairs = _engine_pairs(ordered)
     previous: Event | None = None
-    for row in _order_rows(visible):
+    for row in ordered:
         gap = _clock_gap(previous, row.event)
         if gap is not None:
             lines.append(gap)
+        if _is_execution_engine_error(row):
+            partner = pairs.get(row.index)
+            if partner is None:
+                lines.append(_unpaired_line(row))
+            else:
+                lines.append(_engine_pair_line(row, partner))
         lines.append(_row(row))
         previous = row.event
     return "\n".join(lines)
@@ -119,6 +135,102 @@ def _earliest_slot(rows: list[_Row]) -> int | None:
         return None
     first = min(rows, key=_bad_order)
     return first.slot
+
+
+def _engine_pairs(rows: list[_Row]) -> dict[int, _Row]:
+    """Map each execution engine error to the consensus line that requested the payload."""
+
+    requests = [row for row in rows if _is_payload_request(row)]
+    paired: dict[int, _Row] = {}
+    for row in rows:
+        if not _is_execution_engine_error(row):
+            continue
+        partner = _match_request(row, requests)
+        if partner is not None:
+            paired[row.index] = partner
+    return paired
+
+
+def _is_execution_engine_error(row: _Row) -> bool:
+    event = row.event
+    if event.source != "execution":
+        return False
+    if event.failure_class in _ENGINE_CLASSES:
+        return True
+    return _ENGINE_FAILURE.search(event.excerpt) is not None
+
+
+def _is_payload_request(row: _Row) -> bool:
+    event = row.event
+    if event.source != "consensus":
+        return False
+    if event.failure_class == "engine-timeout":
+        return True
+    return _PAYLOAD_REQUEST.search(event.excerpt) is not None
+
+
+def _match_request(row: _Row, requests: list[_Row]) -> _Row | None:
+    candidates: list[_Row] = []
+    for request in requests:
+        if row.slot is not None and request.slot is not None:
+            if row.slot == request.slot:
+                candidates.append(request)
+            continue
+        if _within_gap(row, request):
+            candidates.append(request)
+    if not candidates:
+        return None
+    return min(candidates, key=lambda request: _pair_distance(row, request))
+
+
+def _within_gap(row: _Row, other: _Row) -> bool:
+    left = _event_time(row.event)
+    right = _event_time(other.event)
+    if left is None or right is None:
+        return False
+    return abs(left - right) <= CLOCK_GAP
+
+
+def _pair_distance(row: _Row, request: _Row) -> tuple[timedelta, int]:
+    left = _event_time(row.event)
+    right = _event_time(request.event)
+    if left is None or right is None:
+        return (timedelta.max, request.index)
+    return (abs(left - right), request.index)
+
+
+def _engine_pair_line(row: _Row, request: _Row) -> str:
+    parts = ["engine pair"]
+    slot = row.slot if row.slot is not None else request.slot
+    if slot is not None:
+        parts.append(f"slot={slot}")
+    payload = _payload_id(row) or _payload_id(request)
+    if payload is not None:
+        parts.append(f"payload={payload}")
+    block = _pair_block(row, request, payload)
+    if block is not None:
+        parts.append(f"block={block}")
+    return " ".join(parts)
+
+
+def _unpaired_line(row: _Row) -> str:
+    if row.slot is None:
+        return "engine error unpaired"
+    return f"engine error unpaired slot={row.slot}"
+
+
+def _payload_id(row: _Row) -> str | None:
+    found = _PAYLOAD_ID.search(row.event.excerpt)
+    if found is None:
+        return None
+    return found.group(1)
+
+
+def _pair_block(row: _Row, request: _Row, payload: str | None) -> str | None:
+    for candidate in (row.block, request.block):
+        if candidate is not None and candidate != payload:
+            return candidate
+    return None
 
 
 def _bad_order(row: _Row) -> tuple[bool, datetime, int, int]:

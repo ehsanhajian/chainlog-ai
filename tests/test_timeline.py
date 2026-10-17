@@ -223,6 +223,84 @@ def test_a_case_without_duty_lines_says_the_boundary_is_unknown() -> None:
     assert "Starting Geth" in text
 
 
+def test_an_engine_error_pairs_with_the_consensus_request_on_the_same_slot() -> None:
+    case = Case(
+        id="pair-slot",
+        events=[
+            _event(
+                "consensus",
+                "Error whilst processing payload slot: 10 block: 0xabcabc",
+                time="2026-10-08T06:13:58Z",
+                client="lighthouse",
+            ),
+            _event(
+                "execution",
+                'Engine API newPayload id=0x9f3a slot: 10 err="context deadline exceeded"',
+                time="2026-10-08T06:14:20Z",
+                client="geth",
+            ),
+        ],
+    )
+    text = render_timeline(case)
+    assert "engine pair slot=10 payload=0x9f3a block=0xabcabc" in text
+    assert "engine error unpaired" not in text
+    assert "id=0x9f3a" in text
+    assert "processing payload" in text
+
+
+def test_an_engine_error_pairs_on_a_tight_timestamp_when_the_slot_is_missing() -> None:
+    case = Case(
+        id="pair-time",
+        events=[
+            _event(
+                "consensus",
+                "Error whilst processing payload",
+                time="2026-10-08T06:13:58Z",
+                client="lighthouse",
+            ),
+            _event(
+                "execution",
+                "Engine API newPayload context deadline exceeded",
+                time="2026-10-08T06:14:02Z",
+                client="geth",
+            ),
+        ],
+    )
+    text = render_timeline(case)
+    assert "engine pair\n" in text
+    assert "engine error unpaired" not in text
+
+
+def test_an_engine_error_with_no_consensus_line_stays_unpaired() -> None:
+    case = Case(
+        id="unpaired",
+        events=[
+            _event(
+                "consensus",
+                "request to execution client timed out slot: 1",
+                time="2026-10-08T06:14:00Z",
+                client="lighthouse",
+            ),
+            _event(
+                "execution",
+                "Engine API newPayload context deadline exceeded slot: 2",
+                time="2026-10-08T06:14:01Z",
+                client="geth",
+            ),
+            _event(
+                "execution",
+                "Served engine_newPayload status=INVALID",
+                time="2026-10-08T06:20:00Z",
+                client="geth",
+            ),
+        ],
+    )
+    text = render_timeline(case)
+    assert "engine pair" not in text
+    assert "engine error unpaired slot=2" in text
+    assert text.count("engine error unpaired") == 2
+
+
 def test_clock_gap_is_called_out_only_between_a_client_and_the_cluster() -> None:
     case = Case(
         id="gap",
@@ -283,6 +361,8 @@ def test_example_incident_timeline(home: Path) -> None:
     assert stdout.startswith("case incident\n")
     assert "last healthy slot 10274311\n" in stdout
     assert "first bad slot 10274310\n" in stdout
+    assert "engine pair slot=10274310 payload=0x9f3a" in stdout
+    assert "engine error unpaired" not in stdout
     assert "Starting Geth" in stdout
     assert "unclassified" in stdout
     assert "hunter2" not in stdout
