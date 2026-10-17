@@ -45,6 +45,19 @@ _PAYLOAD_ID = re.compile(
 )
 _PROCESS_EXIT = re.compile(r"\boomkilled\b|\bkilling\b|\bevicted\b|shutting down|process exited", re.IGNORECASE)
 _EXIT_CLASSES = {"oom-killed", "killed-externally", "evicted", "crash-loop"}
+_RESET = "\033[0m"
+_REDACTED_COLOR = "\033[1;31m"
+_GAP_COLOR = "\033[1;33m"
+_SEVERITY_COLOR = {"info": "\033[32m", "warning": "\033[33m", "critical": "\033[31m"}
+_SOURCE_COLOR = {
+    "kubernetes": "\033[34m",
+    "kubernetes-previous": "\033[34m",
+    "execution": "\033[36m",
+    "consensus": "\033[35m",
+    "validator": "\033[96m",
+    "builder": "\033[94m",
+}
+_REDACTED = re.compile(re.escape("[redacted]"))
 
 
 class TimelineError(Exception):
@@ -61,8 +74,18 @@ class _Row:
     inferred: bool
 
 
-def render_timeline(case: Case, *, since: str | None = None, until: str | None = None) -> str:
-    """Return the case in time order. ``since`` and ``until`` are inclusive."""
+def render_timeline(
+    case: Case,
+    *,
+    since: str | None = None,
+    until: str | None = None,
+    color: bool = False,
+    width: int | None = None,
+) -> str:
+    """Return the case in time order. ``since`` and ``until`` are inclusive.
+
+    ``color`` and ``width`` change only a terminal view. Piped output leaves both unset.
+    """
 
     start = _bound(since, "--since")
     end = _bound(until, "--until")
@@ -79,14 +102,14 @@ def render_timeline(case: Case, *, since: str | None = None, until: str | None =
     for row in ordered:
         gap = _clock_gap(previous, row.event)
         if gap is not None:
-            lines.append(gap)
+            lines.append(_paint(gap, _GAP_COLOR) if color else gap)
         if _is_execution_engine_error(row):
             partner = pairs.get(row.index)
             if partner is None:
                 lines.append(_unpaired_line(row))
             else:
                 lines.append(_engine_pair_line(row, partner))
-        lines.append(_row(row))
+        lines.append(_row(row, color=color, width=width))
         previous = row.event
     return "\n".join(lines)
 
@@ -318,15 +341,30 @@ def _sort_key(event: Event, events: list[Event]) -> tuple[datetime, int, int]:
     return (stamp, _SOURCE_ORDER.get(event.source, len(_SOURCE_ORDER)), events.index(event))
 
 
-def _row(row: _Row) -> str:
+def _row(row: _Row, *, color: bool = False, width: int | None = None) -> str:
     event = row.event
     when = event.time or "-"
     client = event.client or "-"
     kind = event.failure_class or "unclassified"
     fields = _chain_fields(row)
-    if fields:
-        return f"{when} {event.source} {client} {kind} {fields} {event.excerpt}"
-    return f"{when} {event.source} {client} {kind} {event.excerpt}"
+    head = " ".join(part for part in (when, event.source, client, kind, fields) if part)
+    excerpt = event.excerpt
+    plain = f"{head} {excerpt}" if excerpt else head
+    narrow = width is not None and bool(excerpt) and len(plain) > width
+    if color:
+        source = _paint(event.source, _SOURCE_COLOR.get(event.source, "\033[36m"))
+        shown = _paint(kind, _SEVERITY_COLOR[event.severity]) if event.severity in _SEVERITY_COLOR else kind
+        head = " ".join(part for part in (when, source, client, shown, fields) if part)
+        excerpt = _REDACTED.sub(lambda match: _paint(match.group(0), _REDACTED_COLOR), excerpt)
+    if narrow:
+        return f"{head}\n  {excerpt}"
+    if excerpt:
+        return f"{head} {excerpt}"
+    return head
+
+
+def _paint(text: str, color: str) -> str:
+    return f"{color}{text}{_RESET}"
 
 
 def _chain_fields(row: _Row) -> str:

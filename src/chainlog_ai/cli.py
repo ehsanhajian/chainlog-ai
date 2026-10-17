@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 import sys
 
 from chainlog_ai import __version__
@@ -211,7 +212,8 @@ def build_parser() -> argparse.ArgumentParser:
             "A row shows the slot, epoch, and block printed on the line. "
             "A missing slot is filled from a consensus line in the same few seconds. "
             "The timeline names the last healthy slot and the first bad slot. "
-            "An execution engine error is paired with the consensus line that requested the payload."
+            "An execution engine error is paired with the consensus line that requested the payload. "
+            "A terminal colors severity, source, clock gaps, and [redacted], and moves a long excerpt to the next line."
         ),
     )
     timeline_parser.add_argument("--case", required=True, help="Case id printed by ingest")
@@ -300,7 +302,11 @@ def _cmd_classify(args: argparse.Namespace) -> int:
 def _cmd_timeline(args: argparse.Namespace) -> int:
     try:
         case = load_case(args.case)
-        text = render_timeline(case, since=args.since, until=args.until)
+        color = sys.stdout.isatty()
+        width = shutil.get_terminal_size().columns if color else None
+        if width is not None and width < 1:
+            width = None
+        text = render_timeline(case, since=args.since, until=args.until, color=color, width=width)
     except CaseNotFoundError as exc:
         print(exc, file=sys.stderr)
         return 3
