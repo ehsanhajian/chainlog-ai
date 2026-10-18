@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from chainlog_ai.case import Case, Event
+from chainlog_ai.style import CAUSE_COLOR, SEVERITY_COLOR, WINDOW_COLOR, paint, paint_redacted, paint_severity, paint_source
 from chainlog_ai.timeline import timeline_rows
 
 _SEVERITY_RANK = {"critical": 0, "warning": 1, "info": 2}
@@ -20,31 +21,45 @@ _CLUSTER = {"kubernetes", "kubernetes-previous"}
 _NAMED = {"execution", "consensus", "validator", "builder"}
 
 
-def explain(case: Case) -> tuple[str, bool]:
+def explain(case: Case, *, color: bool = False, width: int | None = None) -> tuple[str, bool]:
     """Return the cause text and whether a cause was cited.
 
     The cause is the earliest critical failure on the timeline, or the earliest
     warning when the case has no critical line. Each sentence names the source
-    and the time of the timeline row printed under it.
+    and the time of the timeline row printed under it. ``color`` and ``width``
+    match the terminal timeline.
     """
 
-    rows = timeline_rows(case)
+    rows = timeline_rows(case, color=color, width=width)
     failures = [(index, event, text) for index, (event, text) in enumerate(rows) if event.failure_class]
     if not failures:
-        return f"case {case.id}\nevidence is not enough to state a cause", False
+        notice = "evidence is not enough to state a cause"
+        if color:
+            notice = paint(notice, SEVERITY_COLOR["warning"])
+        return f"case {case.id}\n{notice}", False
     _index, event, text = min(failures, key=_cause_key)
-    sentence = _sentence(event)
+    sentence = _sentence(event, color=color)
     window = "window: unknown" if event.time is None else f"window: {event.time} .. {event.time}"
-    body = "\n".join([f"case {case.id}", f"cause: {sentence}", window, text])
+    if color:
+        sentence = paint("cause: ", CAUSE_COLOR) + sentence
+        window = paint(window, WINDOW_COLOR)
+    else:
+        sentence = f"cause: {sentence}"
+    body = "\n".join([f"case {case.id}", sentence, window, text])
     return body, True
 
 
-def _sentence(event: Event) -> str:
+def _sentence(event: Event, *, color: bool) -> str:
     source = _cause_source(event)
-    kind = event.failure_class
+    kind = event.failure_class or ""
+    if color:
+        source = paint_source(source, event.source)
+        kind = paint_severity(kind, event.severity)
     if event.time is None:
-        return f"{source} failed with {kind}."
-    return f"{source} failed with {kind} at {event.time}."
+        sentence = f"{source} failed with {kind}."
+    else:
+        sentence = f"{source} failed with {kind} at {event.time}."
+    return paint_redacted(sentence) if color else sentence
 
 
 def _cause_source(event: Event) -> str:

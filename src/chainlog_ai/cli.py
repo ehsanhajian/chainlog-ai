@@ -10,6 +10,7 @@ from chainlog_ai import __version__
 from chainlog_ai.case import CaseError, CaseNotFoundError, Event, load_case
 from chainlog_ai.classify import CatalogError, classify_case
 from chainlog_ai.ingest import SOURCES, InputError, ingest
+from chainlog_ai.style import paint_redacted
 from chainlog_ai.timeline import TimelineError, render_timeline
 from chainlog_ai.why import explain
 
@@ -151,7 +152,8 @@ def build_parser() -> argparse.ArgumentParser:
             "A missing slot is filled from a consensus line in the same few seconds. "
             "The timeline names the last healthy slot and the first bad slot. "
             "An execution engine error is paired with the consensus line that requested the payload. "
-            "A terminal colors severity, source, clock gaps, and [redacted], and moves a long excerpt to the next line."
+            "A terminal colors severity, source, clock gaps, the slot boundary, and [redacted], "
+            "and moves a long excerpt to the next line."
         ),
     )
     timeline_parser.add_argument("--case", required=True, help="Case id printed by ingest")
@@ -278,7 +280,8 @@ def _cmd_ingest(args: argparse.Namespace) -> int:
 
     def on_events(events: list[Event]) -> None:
         for event in events:
-            print(event.excerpt, flush=True)
+            excerpt = paint_redacted(event.excerpt) if sys.stdout.isatty() else event.excerpt
+            print(excerpt, flush=True)
 
     try:
         case_id = ingest(
@@ -298,7 +301,12 @@ def _cmd_ingest(args: argparse.Namespace) -> int:
 
 def _cmd_classify(args: argparse.Namespace) -> int:
     try:
-        text = classify_case(args.case, catalog=None if args.catalog is None else args.catalog)
+        color, _width = _terminal_view()
+        text = classify_case(
+            args.case,
+            catalog=None if args.catalog is None else args.catalog,
+            color=color,
+        )
     except CaseNotFoundError as exc:
         print(exc, file=sys.stderr)
         return 3
@@ -312,10 +320,7 @@ def _cmd_classify(args: argparse.Namespace) -> int:
 def _cmd_timeline(args: argparse.Namespace) -> int:
     try:
         case = load_case(args.case)
-        color = sys.stdout.isatty()
-        width = shutil.get_terminal_size().columns if color else None
-        if width is not None and width < 1:
-            width = None
+        color, width = _terminal_view()
         text = render_timeline(case, since=args.since, until=args.until, color=color, width=width)
     except CaseNotFoundError as exc:
         print(exc, file=sys.stderr)
@@ -325,6 +330,15 @@ def _cmd_timeline(args: argparse.Namespace) -> int:
         return 3
     print(text)
     return 0
+
+
+def _terminal_view() -> tuple[bool, int | None]:
+    if not sys.stdout.isatty():
+        return False, None
+    width = shutil.get_terminal_size().columns
+    if width < 1:
+        return True, None
+    return True, width
 
 
 def _inputs(args: argparse.Namespace) -> list[tuple[str, ...]]:
@@ -342,8 +356,9 @@ def _cmd_why(args: argparse.Namespace) -> int:
         return 3
     try:
         case_id = ingest(inputs, case_id=args.case) if inputs else args.case
+        color, width = _terminal_view()
         classify_case(case_id)
-        text, cited = explain(load_case(case_id))
+        text, cited = explain(load_case(case_id), color=color, width=width)
     except CaseNotFoundError as exc:
         print(exc, file=sys.stderr)
         return 3
