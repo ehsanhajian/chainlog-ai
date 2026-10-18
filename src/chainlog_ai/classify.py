@@ -12,6 +12,7 @@ from chainlog_ai.builder import BUILDER_CLIENTS
 from chainlog_ai.case import Case, Event, load_case, save_case
 from chainlog_ai.consensus import CONSENSUS_CLIENTS
 from chainlog_ai.execution import EXECUTION_CLIENTS
+from chainlog_ai.style import paint_severity
 from chainlog_ai.validator import VALIDATOR_CLIENTS
 
 
@@ -163,22 +164,39 @@ def _resume_serving(events: list[Event]) -> None:
                 event.serving = True
 
 
-def classify_case(case_id: str, catalog: str | Path | None = None) -> str:
+def classify_case(case_id: str, catalog: str | Path | None = None, *, color: bool = False) -> str:
     """Label ``case_id`` from the catalog and return the count text."""
 
     rules = default_catalog() if catalog is None else catalog_from_path(Path(catalog))
     case = load_case(case_id)
     counts = label(case, rules)
     save_case(case)
-    return format_counts(case.id, counts)
+    severities = _class_severity(rules) if color else None
+    return format_counts(case.id, counts, severities=severities)
 
 
-def format_counts(case_id: str, counts: dict[str, int]) -> str:
+def format_counts(
+    case_id: str,
+    counts: dict[str, int],
+    *,
+    severities: dict[str, str] | None = None,
+) -> str:
     lines = [f"case {case_id}"]
     for name in sorted(key for key in counts if key != "unclassified" and counts[key]):
-        lines.append(f"{name} {counts[name]}")
+        label = paint_severity(name, severities.get(name) if severities else None) if severities else name
+        lines.append(f"{label} {counts[name]}")
     lines.append(f"unclassified {counts.get('unclassified', 0)}")
     return "\n".join(lines)
+
+
+def _class_severity(rules: tuple[Rule, ...] | list[Rule]) -> dict[str, str]:
+    rank = {"critical": 0, "warning": 1, "info": 2}
+    found: dict[str, str] = {}
+    for rule in rules:
+        current = found.get(rule.failure_class)
+        if current is None or rank[rule.severity] < rank[current]:
+            found[rule.failure_class] = rule.severity
+    return found
 
 
 def _rule(item: dict[str, object], seen: set[str]) -> Rule:

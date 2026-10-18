@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from chainlog_ai.case import load_case
-from chainlog_ai.classify import CatalogError, default_catalog, load_catalog
+from chainlog_ai.classify import CatalogError, default_catalog, format_counts, load_catalog
 from chainlog_ai.cli import main
 
 
@@ -34,6 +34,18 @@ def test_default_catalog_rules_have_a_source() -> None:
     assert all(rule.document.startswith("https://") for rule in rules)
     assert all(rule.severity in {"info", "warning", "critical"} for rule in rules)
     assert all(isinstance(rule.serving, bool) for rule in rules)
+
+
+def test_classify_colors_a_class_by_its_severity() -> None:
+    text = format_counts(
+        "counts",
+        {"database-closed": 1, "missed-attestation": 2, "unclassified": 3},
+        severities={"database-closed": "critical", "missed-attestation": "warning"},
+    )
+    assert "\033[31mdatabase-closed\033[0m 1" in text
+    assert "\033[33mmissed-attestation\033[0m 2" in text
+    plain = format_counts("counts", {"database-closed": 1, "unclassified": 0})
+    assert plain == "case counts\ndatabase-closed 1\nunclassified 0"
 
 
 def test_catalog_without_a_source_fails_to_load(tmp_path: Path) -> None:

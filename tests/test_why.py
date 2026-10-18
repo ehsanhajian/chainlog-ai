@@ -1,11 +1,16 @@
 import contextlib
 import io
+import os
+import re
+import shutil
+import sys
+from argparse import Namespace
 from pathlib import Path
 
 import pytest
 
 from chainlog_ai.case import Case, Event, load_case
-from chainlog_ai.cli import main
+from chainlog_ai.cli import _cmd_why, main
 from chainlog_ai.why import explain
 
 
@@ -127,6 +132,58 @@ def test_an_undated_failure_has_an_unknown_window() -> None:
     assert "cause: cluster failed with killed-externally." in text
     assert "window: unknown" in text
     assert "Killing: Stopping container geth" in text
+
+
+def test_a_terminal_colors_the_cause_and_the_cited_row() -> None:
+    case = Case(
+        id="color",
+        events=[
+            _event(
+                "kubernetes",
+                "mount failed password=[redacted]",
+                time="2026-10-08T06:13:48Z",
+                failure_class="volume-mount-failed",
+                severity="critical",
+            )
+        ],
+    )
+    text, cited = explain(case, color=True, width=200)
+    assert cited
+    assert "\033[1mcause: \033[0m" in text
+    assert "\033[34mcluster\033[0m" in text
+    assert "\033[31mvolume-mount-failed\033[0m" in text
+    assert "\033[34mkubernetes\033[0m" in text
+    assert "password=\033[1;31m[redacted]\033[0m" in text
+    plain = re.sub(r"\033\[[0-9;]*m", "", text)
+    assert "cause: cluster failed with volume-mount-failed at 2026-10-08T06:13:48Z." in plain
+    assert "password=[redacted]" in plain
+    assert "\033" not in explain(case)[0]
+
+
+class _Tty(io.StringIO):
+    def isatty(self) -> bool:
+        return True
+
+
+def test_why_colors_a_terminal(home: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    log = tmp_path / "geth.log"
+    log.write_text(
+        "INFO Starting Geth on Ethereum mainnet\n"
+        'ERROR [10-08|06:13:58.883] Failed to persist ancient block err="leveldb: closed"\n',
+        encoding="utf-8",
+    )
+    code, stdout, stderr = run("ingest", "--case", "colored", "--execution", str(log))
+    assert code == 0, stderr
+    assert "\033" not in stdout
+    buf = _Tty()
+    monkeypatch.setattr(sys, "stdout", buf)
+    monkeypatch.setattr(shutil, "get_terminal_size", lambda fallback=(80, 24): os.terminal_size((80, 24)))
+    code = _cmd_why(Namespace(case="colored", inputs=[]))
+    assert code == 0
+    text = buf.getvalue()
+    assert "\033[36mexecution\033[0m" in text
+    assert "\033[31mdatabase-closed\033[0m" in text
+    assert "leveldb: closed" in re.sub(r"\033\[[0-9;]*m", "", text)
 
 
 def test_unclassified_lines_are_not_enough() -> None:

@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 
 from chainlog_ai.case import Case, Event
 from chainlog_ai.consensus import consensus_fields
+from chainlog_ai.style import GAP_COLOR, SEVERITY_COLOR, SOURCE_COLOR, paint, paint_redacted
 
 # More than a few seconds between a client clock and a cluster event.
 # A missing slot is filled from a consensus line inside this same window.
@@ -45,19 +46,6 @@ _PAYLOAD_ID = re.compile(
 )
 _PROCESS_EXIT = re.compile(r"\boomkilled\b|\bkilling\b|\bevicted\b|shutting down|process exited", re.IGNORECASE)
 _EXIT_CLASSES = {"oom-killed", "killed-externally", "evicted", "crash-loop"}
-_RESET = "\033[0m"
-_REDACTED_COLOR = "\033[1;31m"
-_GAP_COLOR = "\033[1;33m"
-_SEVERITY_COLOR = {"info": "\033[32m", "warning": "\033[33m", "critical": "\033[31m"}
-_SOURCE_COLOR = {
-    "kubernetes": "\033[34m",
-    "kubernetes-previous": "\033[34m",
-    "execution": "\033[36m",
-    "consensus": "\033[35m",
-    "validator": "\033[96m",
-    "builder": "\033[94m",
-}
-_REDACTED = re.compile(re.escape("[redacted]"))
 
 
 class TimelineError(Exception):
@@ -95,45 +83,51 @@ def render_timeline(
     visible = [row for row in aligned if _in_window(row.event, start, end)]
     if start is not None or end is not None:
         visible = [row for row in visible if row.event.time is not None]
-    lines = [f"case {case.id}", *_boundary(aligned)]
+    lines = [f"case {case.id}", *_boundary(aligned, color=color)]
     ordered = _order_rows(visible)
     pairs = _engine_pairs(ordered)
     previous: Event | None = None
     for row in ordered:
         gap = _clock_gap(previous, row.event)
         if gap is not None:
-            lines.append(_paint(gap, _GAP_COLOR) if color else gap)
+            lines.append(paint(gap, GAP_COLOR) if color else gap)
         if _is_execution_engine_error(row):
             partner = pairs.get(row.index)
             if partner is None:
-                lines.append(_unpaired_line(row))
+                notice = _unpaired_line(row)
+                lines.append(paint(notice, SEVERITY_COLOR["warning"]) if color else notice)
             else:
-                lines.append(_engine_pair_line(row, partner))
+                notice = _engine_pair_line(row, partner)
+                lines.append(paint(notice, SOURCE_COLOR["execution"]) if color else notice)
         lines.append(_row(row, color=color, width=width))
         previous = row.event
     return "\n".join(lines)
 
 
-def timeline_rows(case: Case) -> list[tuple[Event, str]]:
-    """Return each event and its plain timeline row, in timeline order."""
+def timeline_rows(case: Case, *, color: bool = False, width: int | None = None) -> list[tuple[Event, str]]:
+    """Return each event and its timeline row, in timeline order."""
 
     aligned = _align(case.events)
-    return [(row.event, _row(row)) for row in _order_rows(aligned)]
+    return [(row.event, _row(row, color=color, width=width)) for row in _order_rows(aligned)]
 
 
-def _boundary(rows: list[_Row]) -> list[str]:
+def _boundary(rows: list[_Row], *, color: bool = False) -> list[str]:
     """Name the last attested or proposed slot and the first bad slot."""
 
     healthy = [row for row in rows if _is_healthy(row)]
     misses = [row for row in rows if _is_miss(row)]
     if not healthy and not misses:
-        return ["boundary unknown"]
+        line = "boundary unknown"
+        return [paint(line, SEVERITY_COLOR["warning"]) if color else line]
     bad = [row for row in rows if _is_bad(row)]
     last = _latest_slot(healthy)
     first = _earliest_slot(bad)
     last_text = "unknown" if last is None else str(last)
     first_text = "unknown" if first is None else str(first)
-    return [f"last healthy slot {last_text}", f"first bad slot {first_text}"]
+    lines = [f"last healthy slot {last_text}", f"first bad slot {first_text}"]
+    if not color:
+        return lines
+    return [paint(lines[0], SEVERITY_COLOR["info"]), paint(lines[1], SEVERITY_COLOR["critical"])]
 
 
 def _is_healthy(row: _Row) -> bool:
@@ -359,19 +353,15 @@ def _row(row: _Row, *, color: bool = False, width: int | None = None) -> str:
     plain = f"{head} {excerpt}" if excerpt else head
     narrow = width is not None and bool(excerpt) and len(plain) > width
     if color:
-        source = _paint(event.source, _SOURCE_COLOR.get(event.source, "\033[36m"))
-        shown = _paint(kind, _SEVERITY_COLOR[event.severity]) if event.severity in _SEVERITY_COLOR else kind
+        source = paint(event.source, SOURCE_COLOR.get(event.source, "\033[36m"))
+        shown = paint(kind, SEVERITY_COLOR[event.severity]) if event.severity in SEVERITY_COLOR else kind
         head = " ".join(part for part in (when, source, client, shown, fields) if part)
-        excerpt = _REDACTED.sub(lambda match: _paint(match.group(0), _REDACTED_COLOR), excerpt)
+        excerpt = paint_redacted(excerpt)
     if narrow:
         return f"{head}\n  {excerpt}"
     if excerpt:
         return f"{head} {excerpt}"
     return head
-
-
-def _paint(text: str, color: str) -> str:
-    return f"{color}{text}{_RESET}"
 
 
 def _chain_fields(row: _Row) -> str:

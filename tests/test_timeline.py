@@ -348,6 +348,8 @@ def test_a_terminal_colors_severity_source_clock_gap_and_redacted_text() -> None
     assert "\033[31mvolume-mount-failed\033[0m" in text
     assert "password=\033[1;31m[redacted]\033[0m" in text
     assert "\033[1;33mclock gap 600s between execution and kubernetes\033[0m" in text
+    assert "\033[32mlast healthy slot unknown\033[0m" in text
+    assert "\033[31mfirst bad slot 10\033[0m" in text
     plain = re.sub(r"\033\[[0-9;]*m", "", text)
     assert "password=[redacted]" in plain
     assert "\033" not in render_timeline(_colored_case())
