@@ -114,6 +114,13 @@ def render_timeline(
     return "\n".join(lines)
 
 
+def timeline_rows(case: Case) -> list[tuple[Event, str]]:
+    """Return each event and its plain timeline row, in timeline order."""
+
+    aligned = _align(case.events)
+    return [(row.event, _row(row)) for row in _order_rows(aligned)]
+
+
 def _boundary(rows: list[_Row]) -> list[str]:
     """Name the last attested or proposed slot and the first bad slot."""
 

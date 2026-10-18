@@ -11,6 +11,7 @@ from chainlog_ai.case import CaseError, CaseNotFoundError, Event, load_case
 from chainlog_ai.classify import CatalogError, classify_case
 from chainlog_ai.ingest import SOURCES, InputError, ingest
 from chainlog_ai.timeline import TimelineError, render_timeline
+from chainlog_ai.why import explain
 
 
 class _ClientInput(argparse.Action):
@@ -111,7 +112,7 @@ def build_parser() -> argparse.ArgumentParser:
             "into a case under ~/.chainlog-ai, or CHAINLOG_AI_HOME when that is set."
         ),
     )
-    ingest_parser.set_defaults(inputs=[], func=_cmd_ingest)
+    ingest_parser.set_defaults(func=_cmd_ingest)
     ingest_parser.add_argument(
         "--case",
         help="Append to this case. The case is created when it does not exist.",
@@ -121,70 +122,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Read new lines from the local files until this command is stopped",
     )
-    _add_source(ingest_parser, "--execution", "execution", "Execution-client log")
-    ingest_parser.add_argument(
-        "--execution-client",
-        action=_ClientInput,
-        const="execution",
-        metavar="CLIENT",
-        help="Name the preceding execution log: geth, nethermind, erigon, besu, or reth",
-    )
-    _add_source(ingest_parser, "--consensus", "consensus", "Consensus-client log")
-    ingest_parser.add_argument(
-        "--consensus-client",
-        action=_ClientInput,
-        const="consensus",
-        metavar="CLIENT",
-        help="Name the preceding consensus log: lighthouse, prysm, teku, nimbus, or lodestar",
-    )
-    _add_source(ingest_parser, "--validator", "validator", "Validator or signer log")
-    ingest_parser.add_argument(
-        "--validator-client",
-        action=_ClientInput,
-        const="validator",
-        metavar="CLIENT",
-        help="Name the preceding validator log: lighthouse, prysm, teku, nimbus, lodestar, or web3signer",
-    )
-    _add_source(ingest_parser, "--builder", "builder", "Builder log")
-    ingest_parser.add_argument(
-        "--builder-client",
-        action=_ClientInput,
-        const="builder",
-        metavar="CLIENT",
-        help="Name the preceding builder log: mev-boost",
-    )
-    _add_source(ingest_parser, "--kube", "kubernetes", "Kubernetes events file or container log")
-    ingest_parser.add_argument(
-        "--namespace",
-        action=_KubeValue,
-        metavar="NAME",
-        help="Namespace of the preceding container log",
-    )
-    ingest_parser.add_argument(
-        "--pod",
-        action=_KubeValue,
-        metavar="NAME",
-        help="Pod name of the preceding container log",
-    )
-    ingest_parser.add_argument(
-        "--container",
-        action=_KubeValue,
-        metavar="NAME",
-        help="Container name of the preceding container log",
-    )
-    ingest_parser.add_argument(
-        "--restart",
-        action=_KubeValue,
-        type=int,
-        metavar="N",
-        help="Restart count of the preceding container log",
-    )
-    ingest_parser.add_argument(
-        "--previous",
-        action=_KubePrevious,
-        nargs=0,
-        help="The preceding container log is the previous instance",
-    )
+    _add_case_inputs(ingest_parser)
 
     classify_parser = commands.add_parser(
         "classify",
@@ -224,11 +162,87 @@ def build_parser() -> argparse.ArgumentParser:
     why_parser = commands.add_parser(
         "why",
         help="Why did it fail?",
-        description="Load a local case. A cause is stated only when the cited lines support one.",
+        description=(
+            "Classify a local case from the rule catalog, read the timeline, and state one cause. "
+            "The cause names the source that failed and cites the timeline row and the time window. "
+            "Pass a case id, or the same files as ingest. why does not call a model."
+        ),
     )
-    why_parser.add_argument("--case", required=True, help="Case id printed by ingest")
+    why_parser.add_argument(
+        "--case",
+        help="Case id printed by ingest. Created when files are passed and the case does not exist.",
+    )
+    _add_case_inputs(why_parser)
     why_parser.set_defaults(func=_cmd_why)
     return parser
+
+
+def _add_case_inputs(parser: argparse.ArgumentParser) -> None:
+    parser.set_defaults(inputs=[])
+    _add_source(parser, "--execution", "execution", "Execution-client log")
+    parser.add_argument(
+        "--execution-client",
+        action=_ClientInput,
+        const="execution",
+        metavar="CLIENT",
+        help="Name the preceding execution log: geth, nethermind, erigon, besu, or reth",
+    )
+    _add_source(parser, "--consensus", "consensus", "Consensus-client log")
+    parser.add_argument(
+        "--consensus-client",
+        action=_ClientInput,
+        const="consensus",
+        metavar="CLIENT",
+        help="Name the preceding consensus log: lighthouse, prysm, teku, nimbus, or lodestar",
+    )
+    _add_source(parser, "--validator", "validator", "Validator or signer log")
+    parser.add_argument(
+        "--validator-client",
+        action=_ClientInput,
+        const="validator",
+        metavar="CLIENT",
+        help="Name the preceding validator log: lighthouse, prysm, teku, nimbus, lodestar, or web3signer",
+    )
+    _add_source(parser, "--builder", "builder", "Builder log")
+    parser.add_argument(
+        "--builder-client",
+        action=_ClientInput,
+        const="builder",
+        metavar="CLIENT",
+        help="Name the preceding builder log: mev-boost",
+    )
+    _add_source(parser, "--kube", "kubernetes", "Kubernetes events file or container log")
+    parser.add_argument(
+        "--namespace",
+        action=_KubeValue,
+        metavar="NAME",
+        help="Namespace of the preceding container log",
+    )
+    parser.add_argument(
+        "--pod",
+        action=_KubeValue,
+        metavar="NAME",
+        help="Pod name of the preceding container log",
+    )
+    parser.add_argument(
+        "--container",
+        action=_KubeValue,
+        metavar="NAME",
+        help="Container name of the preceding container log",
+    )
+    parser.add_argument(
+        "--restart",
+        action=_KubeValue,
+        type=int,
+        metavar="N",
+        help="Restart count of the preceding container log",
+    )
+    parser.add_argument(
+        "--previous",
+        action=_KubePrevious,
+        nargs=0,
+        help="The preceding container log is the previous instance",
+    )
 
 
 def _add_source(parser: argparse.ArgumentParser, flag: str, source: str, help_text: str) -> None:
@@ -250,11 +264,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _cmd_ingest(args: argparse.Namespace) -> int:
-    inputs = [
-        (item[0], item[1], item[2], item[3] if len(item) > 3 else None)
-        for item in args.inputs
-        if item[0] in SOURCES
-    ]
+    inputs = _inputs(args)
     if not inputs:
         print("ingest needs an input file", file=sys.stderr)
         return 3
@@ -317,18 +327,31 @@ def _cmd_timeline(args: argparse.Namespace) -> int:
     return 0
 
 
+def _inputs(args: argparse.Namespace) -> list[tuple[str, ...]]:
+    return [
+        (item[0], item[1], item[2], item[3] if len(item) > 3 else None)
+        for item in args.inputs
+        if item[0] in SOURCES
+    ]
+
+
 def _cmd_why(args: argparse.Namespace) -> int:
+    inputs = _inputs(args)
+    if args.case is None and not inputs:
+        print("why needs a case id or an input file", file=sys.stderr)
+        return 3
     try:
-        case = load_case(args.case)
+        case_id = ingest(inputs, case_id=args.case) if inputs else args.case
+        classify_case(case_id)
+        text, cited = explain(load_case(case_id))
     except CaseNotFoundError as exc:
         print(exc, file=sys.stderr)
         return 3
-    except CaseError as exc:
+    except (CaseError, InputError, CatalogError) as exc:
         print(exc, file=sys.stderr)
         return 3
-    print(f"case {case.id}")
-    print("evidence is not enough to state a cause")
-    return 1
+    print(text)
+    return 0 if cited else 1
 
 
 if __name__ == "__main__":
