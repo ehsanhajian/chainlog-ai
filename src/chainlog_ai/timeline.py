@@ -104,11 +104,46 @@ def render_timeline(
     return "\n".join(lines)
 
 
-def timeline_rows(case: Case, *, color: bool = False, width: int | None = None) -> list[tuple[Event, str]]:
+def timeline_rows(
+    case: Case,
+    *,
+    color: bool = False,
+    width: int | None = None,
+    since: str | None = None,
+    until: str | None = None,
+) -> list[tuple[Event, str]]:
     """Return each event and its timeline row, in timeline order."""
 
-    aligned = _align(case.events)
-    return [(row.event, _row(row, color=color, width=width)) for row in _order_rows(aligned)]
+    return [
+        (row.event, _row(row, color=color, width=width))
+        for row in _visible_rows(case, since=since, until=until)
+    ]
+
+
+def first_bad_slot(case: Case) -> int | None:
+    """Return the slot of the earliest miss, engine failure, or process exit."""
+
+    bad = [row for row in _align(case.events) if _is_bad(row)]
+    if not bad:
+        return None
+    return _earliest_slot(bad)
+
+
+def covered_slots(case: Case, *, since: str | None = None, until: str | None = None) -> set[int]:
+    """Return slots on events inside the window."""
+
+    return {row.slot for row in _visible_rows(case, since=since, until=until) if row.slot is not None}
+
+
+def _visible_rows(case: Case, *, since: str | None, until: str | None) -> list[_Row]:
+    start = _bound(since, "--since")
+    end = _bound(until, "--until")
+    if start is not None and end is not None and start > end:
+        raise TimelineError("--since is after --until")
+    rows = [row for row in _align(case.events) if _in_window(row.event, start, end)]
+    if start is not None or end is not None:
+        rows = [row for row in rows if row.event.time is not None]
+    return _order_rows(rows)
 
 
 def _boundary(rows: list[_Row], *, color: bool = False) -> list[str]:

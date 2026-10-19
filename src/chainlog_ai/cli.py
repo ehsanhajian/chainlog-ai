@@ -168,13 +168,17 @@ def build_parser() -> argparse.ArgumentParser:
             "Classify a local case from the rule catalog, read the timeline, and state one trigger. "
             "Contributors are conditions that made it worse. Symptoms are the later misses and restarts. "
             "A doppelganger or a slashable duty is named critical before the trigger. "
-            "Pass a case id, or the same files as ingest. why does not call a model."
+            "Pass a case id, or the same files as ingest. "
+            "When the evidence is not enough, why names the missing source or the slot the window does not cover, and prints the timeline. "
+            "why does not call a model."
         ),
     )
     why_parser.add_argument(
         "--case",
         help="Case id printed by ingest. Created when files are passed and the case does not exist.",
     )
+    why_parser.add_argument("--since", help="Include events at or after this UTC time")
+    why_parser.add_argument("--until", help="Include events at or before this UTC time")
     _add_case_inputs(why_parser)
     why_parser.set_defaults(func=_cmd_why)
     return parser
@@ -359,11 +363,17 @@ def _cmd_why(args: argparse.Namespace) -> int:
         case_id = ingest(inputs, case_id=args.case) if inputs else args.case
         color, width = _terminal_view()
         classify_case(case_id)
-        text, cited = explain(load_case(case_id), color=color, width=width)
+        text, cited = explain(
+            load_case(case_id),
+            color=color,
+            width=width,
+            since=getattr(args, "since", None),
+            until=getattr(args, "until", None),
+        )
     except CaseNotFoundError as exc:
         print(exc, file=sys.stderr)
         return 3
-    except (CaseError, InputError, CatalogError) as exc:
+    except (CaseError, InputError, CatalogError, TimelineError) as exc:
         print(exc, file=sys.stderr)
         return 3
     print(text)

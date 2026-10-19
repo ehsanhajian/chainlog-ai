@@ -214,10 +214,11 @@ def test_why_accepts_the_ingest_case_id(home: Path, tmp_path: Path) -> None:
     code, stdout, stderr = run("why", "--case", case_id)
     assert code == 1
     assert stderr == ""
-    assert stdout.splitlines() == [
-        f"case {case_id}",
-        "evidence is not enough to state a cause",
-    ]
+    assert stdout.splitlines()[0] == f"case {case_id}"
+    assert "evidence is not enough to state a cause" in stdout
+    assert "missing a classified failure" in stdout
+    assert "database closed" in stdout
+    assert "trigger:" not in stdout
     assert load_case(case_id).events[0].excerpt == "database closed"
 
 
