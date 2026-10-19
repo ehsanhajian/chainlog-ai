@@ -165,8 +165,8 @@ def build_parser() -> argparse.ArgumentParser:
         "why",
         help="Why did it fail?",
         description=(
-            "Classify a local case from the rule catalog, read the timeline, and state one cause. "
-            "The cause names the source that failed and cites the timeline row and the time window. "
+            "Classify a local case from the rule catalog, read the timeline, and state one trigger. "
+            "Contributors are conditions that made it worse. Symptoms are the later misses and restarts. "
             "Pass a case id, or the same files as ingest. why does not call a model."
         ),
     )
