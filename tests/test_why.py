@@ -11,6 +11,7 @@ import pytest
 
 from chainlog_ai.case import Case, Event, load_case
 from chainlog_ai.cli import _cmd_why, main
+from chainlog_ai.timeline import render_timeline
 from chainlog_ai.why import explain
 
 
@@ -162,6 +163,94 @@ def test_a_warning_is_the_trigger_when_nothing_explains_it_sooner() -> None:
     assert "trigger: consensus failed with engine-timeout at 2026-10-08T06:14:00Z." in text
 
 
+def test_a_slashing_risk_is_named_critical_before_the_trigger() -> None:
+    case = Case(
+        id="slash",
+        events=[
+            _event(
+                "execution",
+                'err="leveldb: closed"',
+                time="2026-10-08T06:13:58Z",
+                client="geth",
+                failure_class="database-closed",
+                severity="critical",
+            ),
+            _event(
+                "validator",
+                "Doppelganger(s) detected indices [42]",
+                time="2026-10-08T06:14:20.200Z",
+                client="lighthouse",
+                failure_class="doppelganger",
+                severity="critical",
+            ),
+            _event(
+                "validator",
+                "Slashable attestation prevented slot: 10274311",
+                time="2026-10-08T06:14:20.500Z",
+                client="lighthouse",
+                failure_class="slashable",
+                severity="critical",
+            ),
+        ],
+    )
+    text, cited = explain(case)
+    assert cited
+    lines = text.splitlines()
+    assert lines[1] == "critical: validator failed with doppelganger at 2026-10-08T06:14:20.200Z."
+    assert lines[3] == "critical: validator failed with slashable at 2026-10-08T06:14:20.500Z."
+    assert lines[5] == "trigger: execution failed with database-closed at 2026-10-08T06:13:58Z."
+    assert "window: 2026-10-08T06:13:58Z .. 2026-10-08T06:14:20.500Z" in text
+    timeline = render_timeline(case)
+    timed = [line for line in timeline.splitlines() if line.startswith("2026-")]
+    assert "database-closed" in timed[0]
+    assert "doppelganger" in timed[1]
+    assert "slashable" in timed[2]
+    colored, _cited = explain(case, color=True)
+    assert "\033[31mcritical: \033[0m" in colored
+    assert "\033[31mdoppelganger\033[0m" in colored
+
+
+def test_a_window_without_slashing_risk_omits_the_critical_block() -> None:
+    case = Case(
+        id="quiet",
+        events=[
+            _event(
+                "execution",
+                'err="leveldb: closed"',
+                time="2026-10-08T06:13:58Z",
+                client="geth",
+                failure_class="database-closed",
+                severity="critical",
+            )
+        ],
+    )
+    text, cited = explain(case)
+    assert cited
+    assert "critical:" not in text
+    assert text.splitlines()[1].startswith("trigger:")
+
+
+def test_a_slashable_duty_alone_is_the_critical_block() -> None:
+    case = Case(
+        id="only-slash",
+        events=[
+            _event(
+                "validator",
+                "Slashable attestation prevented",
+                time="2026-10-08T06:14:20Z",
+                client="lighthouse",
+                failure_class="slashable",
+                severity="critical",
+            )
+        ],
+    )
+    text, cited = explain(case)
+    assert cited
+    assert "critical: validator failed with slashable at 2026-10-08T06:14:20Z." in text
+    assert "trigger:" not in text
+    assert "evidence is not enough" not in text
+
+
 def test_a_miss_alone_is_not_the_trigger() -> None:
     case = Case(
         id="miss",
@@ -309,7 +398,9 @@ def test_the_sample_incident_names_the_cluster(home: Path) -> None:
         str(root / "events.json"),
     )
     assert code == 0, stderr
-    assert stdout.splitlines()[1] == "trigger: cluster failed with node-not-ready at 2026-10-08T06:13:42Z."
+    assert stdout.splitlines()[1] == "critical: validator failed with doppelganger at 2026-10-08T06:14:20.200Z."
+    assert "critical: validator failed with slashable at 2026-10-08T06:14:20.500Z." in stdout
+    assert "trigger: cluster failed with node-not-ready at 2026-10-08T06:13:42Z." in stdout
     assert "contributor: cluster failed with cpu-pressure at 2026-10-08T06:10:00Z." in stdout
     assert "contributor: cluster failed with disk-pressure at 2026-10-08T06:13:40Z." in stdout
     assert "contributor: cluster failed with memory-pressure at 2026-10-08T06:13:41Z." in stdout

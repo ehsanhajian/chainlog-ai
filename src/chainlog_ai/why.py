@@ -23,30 +23,39 @@ _SYMPTOMS = {"missed-attestation", "missed-proposal", "crash-loop", "probe-faile
 # Pressure and a drifting clock make a failure worse. They are the trigger only
 # when the case has no class that explains the failure.
 _CONDITIONS = {"cpu-pressure", "memory-pressure", "disk-pressure", "clock-not-synced"}
+_SLASHING = {"doppelganger", "slashable"}
 _Row = tuple[int, Event, str]
 
 
 def explain(case: Case, *, color: bool = False, width: int | None = None) -> tuple[str, bool]:
     """Return the cause text and whether a trigger was cited.
 
-    The trigger is the earliest class that explains the later lines. Conditions
-    such as disk pressure before that failure are contributors. A miss, a
-    restart, or a probe failure is a symptom, including when it is the first
-    line in the case. ``color`` and ``width`` match the terminal timeline.
+    The trigger is the earliest class that explains the later lines. A
+    doppelganger or a slashable duty is named critical before that trigger.
+    Conditions such as disk pressure before that failure are contributors. A
+    miss, a restart, or a probe failure is a symptom, including when it is the
+    first line in the case. ``color`` and ``width`` match the terminal timeline.
     """
 
     rows = timeline_rows(case, color=color, width=width)
     failures = [(index, event, text) for index, (event, text) in enumerate(rows) if event.failure_class]
+    slashing = sorted((item for item in failures if _is_slashing(item)), key=_time_key)
     trigger = _trigger(failures)
-    if trigger is None:
+    if trigger is None and not slashing:
         notice = "evidence is not enough to state a cause"
         if color:
             notice = paint(notice, SEVERITY_COLOR["warning"])
         return f"case {case.id}\n{notice}", False
-    contributors = [item for item in failures if _is_condition(item) and _made_worse(item, trigger)]
+    contributors = [item for item in failures if trigger is not None and _is_condition(item) and _made_worse(item, trigger)]
     symptoms = [item for item in failures if _is_symptom(item)]
-    cited = [trigger, *contributors, *symptoms]
-    lines = [f"case {case.id}", _headed("trigger", trigger, color=color), trigger[2]]
+    cited = [*slashing, *([trigger] if trigger is not None else []), *contributors, *symptoms]
+    lines = [f"case {case.id}"]
+    for item in slashing:
+        lines.append(_headed("critical", item, color=color))
+        lines.append(item[2])
+    if trigger is not None:
+        lines.append(_headed("trigger", trigger, color=color))
+        lines.append(trigger[2])
     for item in sorted(contributors, key=_time_key):
         lines.append(_headed("contributor", item, color=color))
         lines.append(item[2])
@@ -59,13 +68,21 @@ def explain(case: Case, *, color: bool = False, width: int | None = None) -> tup
 
 
 def _trigger(failures: list[_Row]) -> _Row | None:
-    explaining = [item for item in failures if not _is_symptom(item) and not _is_condition(item)]
+    explaining = [
+        item
+        for item in failures
+        if not _is_symptom(item) and not _is_condition(item) and not _is_slashing(item)
+    ]
     if explaining:
         return min(explaining, key=_time_key)
     conditions = [item for item in failures if _is_condition(item)]
     if conditions:
         return min(conditions, key=_time_key)
     return None
+
+
+def _is_slashing(item: _Row) -> bool:
+    return item[1].failure_class in _SLASHING
 
 
 def _is_symptom(item: _Row) -> bool:
@@ -94,7 +111,8 @@ def _headed(role: str, item: _Row, *, color: bool) -> str:
     sentence = _sentence(item[1], color=color)
     if not color:
         return f"{role}: {sentence}"
-    return paint(f"{role}: ", CAUSE_COLOR) + sentence
+    label = SEVERITY_COLOR["critical"] if role == "critical" else CAUSE_COLOR
+    return paint(f"{role}: ", label) + sentence
 
 
 def _window(items: list[_Row]) -> str:
