@@ -149,6 +149,12 @@ def test_a_warning_is_the_trigger_when_nothing_explains_it_sooner() -> None:
         id="warn",
         events=[
             _event(
+                "execution",
+                "Chain head updated",
+                time="2026-10-08T06:12:00Z",
+                client="geth",
+            ),
+            _event(
                 "consensus",
                 "request to execution client timed out",
                 time="2026-10-08T06:14:00Z",
@@ -270,6 +276,8 @@ def test_a_miss_alone_is_not_the_trigger() -> None:
     assert "trigger:" not in text
     assert "symptom:" not in text
     assert "evidence is not enough to state a cause" in text
+    assert "missing a class that explains the failure" in text
+    assert "Missed attestation slot: 4" in text
 
 
 def test_an_undated_failure_has_an_unknown_window() -> None:
@@ -344,6 +352,69 @@ def test_why_colors_a_terminal(home: Path, monkeypatch: pytest.MonkeyPatch, tmp_
     assert "leveldb: closed" in re.sub(r"\033\[[0-9;]*m", "", text)
 
 
+def test_an_engine_timeout_without_execution_names_the_missing_source() -> None:
+    case = Case(
+        id="engine",
+        events=[
+            _event(
+                "consensus",
+                "request to execution client timed out slot: 10",
+                time="2026-10-08T06:13:58Z",
+                client="lighthouse",
+                failure_class="engine-timeout",
+                severity="warning",
+            )
+        ],
+    )
+    text, cited = explain(case)
+    assert not cited
+    assert "evidence is not enough to state a cause" in text
+    assert "missing execution" in text
+    assert "trigger:" not in text
+    assert "request to execution client timed out" in text
+    assert "probably" not in text
+
+
+def test_a_window_that_misses_the_first_bad_slot_stays_a_gap() -> None:
+    case = Case(
+        id="narrow",
+        events=[
+            _event(
+                "execution",
+                "Chain head updated",
+                time="2026-10-08T06:00:00Z",
+                client="geth",
+            ),
+            _event(
+                "consensus",
+                "request to execution client timed out slot: 10",
+                time="2026-10-08T06:13:58Z",
+                client="lighthouse",
+                failure_class="engine-timeout",
+                severity="warning",
+            ),
+            _event(
+                "execution",
+                "Engine API newPayload context deadline exceeded slot: 10",
+                time="2026-10-08T06:14:01Z",
+                client="geth",
+                failure_class="engine-timeout",
+                severity="warning",
+            ),
+        ],
+    )
+    text, cited = explain(case, until="2026-10-08T06:00:00Z")
+    assert not cited
+    assert "window does not cover slot 10" in text
+    assert "trigger:" not in text
+    assert "Chain head updated" in text
+    assert "newPayload" not in text
+    whole, whole_cited = explain(case)
+    assert whole_cited
+    assert "trigger:" in whole
+    assert "window does not cover" not in whole
+
+
 def test_unclassified_lines_are_not_enough() -> None:
     case = Case(
         id="thin",
@@ -351,7 +422,11 @@ def test_unclassified_lines_are_not_enough() -> None:
     )
     text, cited = explain(case)
     assert not cited
-    assert text.splitlines() == ["case thin", "evidence is not enough to state a cause"]
+    assert text.splitlines()[0] == "case thin"
+    assert "evidence is not enough to state a cause" in text
+    assert "missing a classified failure" in text
+    assert "database closed" in text
+    assert "trigger:" not in text
 
 
 def test_why_reads_the_same_files_as_ingest(home: Path, tmp_path: Path) -> None:

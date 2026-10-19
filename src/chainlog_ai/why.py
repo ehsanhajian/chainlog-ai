@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from chainlog_ai.case import Case, Event
 from chainlog_ai.style import CAUSE_COLOR, SEVERITY_COLOR, WINDOW_COLOR, paint, paint_redacted, paint_severity, paint_source
-from chainlog_ai.timeline import timeline_rows
+from chainlog_ai.timeline import covered_slots, first_bad_slot, render_timeline, timeline_rows
 
 _SOURCE_ORDER = {
     "kubernetes": 0,
@@ -24,28 +24,44 @@ _SYMPTOMS = {"missed-attestation", "missed-proposal", "crash-loop", "probe-faile
 # when the case has no class that explains the failure.
 _CONDITIONS = {"cpu-pressure", "memory-pressure", "disk-pressure", "clock-not-synced"}
 _SLASHING = {"doppelganger", "slashable"}
+# These classes are one failure seen from two logs. A cause needs both sources.
+_USUAL = {
+    "engine-timeout": frozenset({"execution", "consensus"}),
+    "invalid-payload": frozenset({"execution", "consensus"}),
+    "capability-mismatch": frozenset({"execution", "consensus"}),
+    "relay-timeout": frozenset({"builder", "consensus"}),
+    "builder-timeout": frozenset({"builder", "consensus"}),
+}
+_SOURCE_NAMES = ("execution", "consensus", "validator", "builder", "cluster")
 _Row = tuple[int, Event, str]
 
 
-def explain(case: Case, *, color: bool = False, width: int | None = None) -> tuple[str, bool]:
+def explain(
+    case: Case,
+    *,
+    color: bool = False,
+    width: int | None = None,
+    since: str | None = None,
+    until: str | None = None,
+) -> tuple[str, bool]:
     """Return the cause text and whether a trigger was cited.
 
     The trigger is the earliest class that explains the later lines. A
     doppelganger or a slashable duty is named critical before that trigger.
     Conditions such as disk pressure before that failure are contributors. A
     miss, a restart, or a probe failure is a symptom, including when it is the
-    first line in the case. ``color`` and ``width`` match the terminal timeline.
+    first line in the case. A thin case names the missing source or the slot
+    the window does not cover, prints the timeline, and does not state a cause.
+    ``color`` and ``width`` match the terminal timeline.
     """
 
-    rows = timeline_rows(case, color=color, width=width)
+    rows = timeline_rows(case, color=color, width=width, since=since, until=until)
     failures = [(index, event, text) for index, (event, text) in enumerate(rows) if event.failure_class]
     slashing = sorted((item for item in failures if _is_slashing(item)), key=_time_key)
     trigger = _trigger(failures)
-    if trigger is None and not slashing:
-        notice = "evidence is not enough to state a cause"
-        if color:
-            notice = paint(notice, SEVERITY_COLOR["warning"])
-        return f"case {case.id}\n{notice}", False
+    gaps = _gaps(case, failures, since=since, until=until)
+    if gaps or (trigger is None and not slashing):
+        return _not_enough(case, gaps, color=color, width=width, since=since, until=until), False
     contributors = [item for item in failures if trigger is not None and _is_condition(item) and _made_worse(item, trigger)]
     symptoms = [item for item in failures if _is_symptom(item)]
     cited = [*slashing, *([trigger] if trigger is not None else []), *contributors, *symptoms]
@@ -65,6 +81,58 @@ def explain(case: Case, *, color: bool = False, width: int | None = None) -> tup
     window = _window(cited)
     lines.append(paint(window, WINDOW_COLOR) if color else window)
     return "\n".join(lines), True
+
+
+def _not_enough(
+    case: Case,
+    gaps: list[str],
+    *,
+    color: bool,
+    width: int | None,
+    since: str | None,
+    until: str | None,
+) -> str:
+    notice = "evidence is not enough to state a cause"
+    if color:
+        notice = paint(notice, SEVERITY_COLOR["warning"])
+        gaps = [paint(gap, SEVERITY_COLOR["warning"]) for gap in gaps]
+    timeline = render_timeline(case, since=since, until=until, color=color, width=width)
+    body = timeline.split("\n", 1)[1] if "\n" in timeline else ""
+    lines = [f"case {case.id}", notice, *gaps]
+    if body:
+        lines.append(body)
+    return "\n".join(lines)
+
+
+def _gaps(case: Case, failures: list[_Row], *, since: str | None, until: str | None) -> list[str]:
+    """Name a missing source or a slot the window does not cover."""
+
+    gaps: list[str] = []
+    present = _present_sources(case)
+    needed: set[str] = set()
+    for _index, event, _text in failures:
+        needed.update(_USUAL.get(event.failure_class or "", ()))
+    for name in _SOURCE_NAMES:
+        if name in needed and name not in present:
+            gaps.append(f"missing {name}")
+    slot = first_bad_slot(case)
+    if slot is not None and slot not in covered_slots(case, since=since, until=until):
+        gaps.append(f"window does not cover slot {slot}")
+    if not failures and not gaps:
+        gaps.append("missing a classified failure")
+    elif failures and _trigger(failures) is None and not any(_is_slashing(item) for item in failures) and not gaps:
+        gaps.append("missing a class that explains the failure")
+    return gaps
+
+
+def _present_sources(case: Case) -> set[str]:
+    present: set[str] = set()
+    for event in case.events:
+        if event.source in _CLUSTER:
+            present.add("cluster")
+        elif event.source in _NAMED:
+            present.add(event.source)
+    return present
 
 
 def _trigger(failures: list[_Row]) -> _Row | None:
