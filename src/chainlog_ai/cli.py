@@ -10,6 +10,7 @@ from chainlog_ai import __version__
 from chainlog_ai.case import CaseError, CaseNotFoundError, Event, load_case
 from chainlog_ai.classify import CatalogError, classify_case
 from chainlog_ai.ingest import SOURCES, InputError, ingest
+from chainlog_ai.patterns import find_patterns
 from chainlog_ai.style import paint_redacted
 from chainlog_ai.timeline import TimelineError, render_timeline
 from chainlog_ai.why import explain
@@ -181,6 +182,19 @@ def build_parser() -> argparse.ArgumentParser:
     why_parser.add_argument("--until", help="Include events at or before this UTC time")
     _add_case_inputs(why_parser)
     why_parser.set_defaults(func=_cmd_why)
+
+    patterns_parser = commands.add_parser(
+        "patterns",
+        help="Has this happened before?",
+        description=(
+            "Compare a local case with earlier cases on this machine. "
+            "A match shares a class, the client, the version, and a similar order of classes. "
+            "The command prints how many earlier cases matched and their ids. "
+            "A case with no earlier case on this machine says this is the first time."
+        ),
+    )
+    patterns_parser.add_argument("--case", required=True, help="Case id printed by ingest")
+    patterns_parser.set_defaults(func=_cmd_patterns)
     return parser
 
 
@@ -378,6 +392,19 @@ def _cmd_why(args: argparse.Namespace) -> int:
         return 3
     print(text)
     return 0 if cited else 1
+
+
+def _cmd_patterns(args: argparse.Namespace) -> int:
+    try:
+        text = find_patterns(args.case)
+    except CaseNotFoundError as exc:
+        print(exc, file=sys.stderr)
+        return 3
+    except (CaseError, CatalogError) as exc:
+        print(exc, file=sys.stderr)
+        return 3
+    print(text)
+    return 0
 
 
 if __name__ == "__main__":
