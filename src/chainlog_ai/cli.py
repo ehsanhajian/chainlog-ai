@@ -5,12 +5,13 @@ from __future__ import annotations
 import argparse
 import shutil
 import sys
+from pathlib import Path
 
 from chainlog_ai import __version__
 from chainlog_ai.case import CaseError, CaseNotFoundError, Event, load_case
 from chainlog_ai.classify import CatalogError, classify_case
 from chainlog_ai.ingest import SOURCES, InputError, ingest
-from chainlog_ai.patterns import find_patterns
+from chainlog_ai.patterns import SignatureError, find_patterns, match_signature, write_signature
 from chainlog_ai.style import paint_redacted
 from chainlog_ai.timeline import TimelineError, render_timeline
 from chainlog_ai.why import explain
@@ -190,10 +191,15 @@ def build_parser() -> argparse.ArgumentParser:
             "Compare a local case with earlier cases on this machine. "
             "A match shares a class, the client, the version, and a similar order of classes. "
             "The command prints how many earlier cases matched and their ids. "
-            "A case with no earlier case on this machine says this is the first time."
+            "A case with no earlier case on this machine says this is the first time. "
+            "--export writes a signature of class ids, client, version, and class order. "
+            "The signature has no log lines and no host names. "
+            "--signature reports match or no match against local cases."
         ),
     )
-    patterns_parser.add_argument("--case", required=True, help="Case id printed by ingest")
+    patterns_parser.add_argument("--case", help="Case id printed by ingest")
+    patterns_parser.add_argument("--export", metavar="FILE", help="Write a redacted signature for another host")
+    patterns_parser.add_argument("--signature", metavar="FILE", help="Match a signature against local cases")
     patterns_parser.set_defaults(func=_cmd_patterns)
     return parser
 
@@ -395,12 +401,26 @@ def _cmd_why(args: argparse.Namespace) -> int:
 
 
 def _cmd_patterns(args: argparse.Namespace) -> int:
+    if args.signature and (args.case or args.export):
+        print("patterns takes a signature or a case, not both", file=sys.stderr)
+        return 3
+    if args.export and not args.case:
+        print("patterns --export needs a case id", file=sys.stderr)
+        return 3
+    if not args.case and not args.signature:
+        print("patterns needs a case id or a signature file", file=sys.stderr)
+        return 3
     try:
-        text = find_patterns(args.case)
+        if args.signature:
+            text = match_signature(Path(args.signature))
+        elif args.export:
+            text = write_signature(args.case, Path(args.export))
+        else:
+            text = find_patterns(args.case)
     except CaseNotFoundError as exc:
         print(exc, file=sys.stderr)
         return 3
-    except (CaseError, CatalogError) as exc:
+    except (CaseError, CatalogError, SignatureError) as exc:
         print(exc, file=sys.stderr)
         return 3
     print(text)

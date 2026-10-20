@@ -1,10 +1,12 @@
-"""Match a case against earlier cases stored on this machine."""
+"""Match a case against earlier cases, and compare a redacted signature across hosts."""
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 
 from chainlog_ai.case import Case, Event, case_file, list_cases, load_case
 from chainlog_ai.classify import classify_case
@@ -12,6 +14,10 @@ from chainlog_ai.classify import classify_case
 _VERSION = re.compile(r"version[:=]\s*([A-Za-z0-9][A-Za-z0-9._/\-]*)", re.IGNORECASE)
 _CLUSTER = {"kubernetes", "kubernetes-previous"}
 _FAR = datetime.max.replace(tzinfo=timezone.utc)
+
+
+class SignatureError(Exception):
+    """The signature file cannot be used."""
 
 
 @dataclass(frozen=True)
@@ -48,12 +54,73 @@ def _format(case_id: str, matched: list[str], *, has_earlier: bool) -> str:
     return "\n".join(lines)
 
 
+def write_signature(case_id: str, path: Path) -> str:
+    """Write a signature of class, client, version, and class order. No log lines."""
+
+    classify_case(case_id)
+    payload = {"streams": [_stream_dict(stream) for stream in _streams(load_case(case_id))]}
+    try:
+        path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    except OSError as exc:
+        raise SignatureError(f"cannot write signature {path}") from exc
+    return f"case {case_id}\nsignature {path}"
+
+
+def match_signature(path: Path) -> str:
+    """Report whether any local case matches a signature from another host."""
+
+    wanted = _read_signature(path)
+    ids = list_cases()
+    for item in ids:
+        classify_case(item)
+    cases = sorted(
+        (load_case(item) for item in ids),
+        key=lambda case: (_earliest(case) is None, _earliest(case) or _FAR, case.id),
+    )
+    matched = [case.id for case in cases if _streams_match(wanted, _streams(case))]
+    if not matched:
+        return "no match"
+    return "\n".join(["match", *matched])
+
+
 def _matches(current: Case, earlier: Case) -> bool:
-    for left in _streams(current):
-        for right in _streams(earlier):
-            if left.client == right.client and left.version == right.version and _similar(left.classes, right.classes):
+    return _streams_match(_streams(current), _streams(earlier))
+
+
+def _streams_match(left: list[_Stream], right: list[_Stream]) -> bool:
+    for one in left:
+        for other in right:
+            if one.client == other.client and one.version == other.version and _similar(one.classes, other.classes):
                 return True
     return False
+
+
+def _stream_dict(stream: _Stream) -> dict[str, object]:
+    return {"client": stream.client, "version": stream.version, "classes": list(stream.classes)}
+
+
+def _read_signature(path: Path) -> list[_Stream]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise SignatureError(f"cannot read signature {path}") from exc
+    if not isinstance(data, dict) or not isinstance(data.get("streams"), list):
+        raise SignatureError(f"cannot read signature {path}")
+    streams: list[_Stream] = []
+    for item in data["streams"]:
+        if not isinstance(item, dict):
+            raise SignatureError(f"cannot read signature {path}")
+        client = item.get("client")
+        version = item.get("version")
+        classes = item.get("classes")
+        if not isinstance(client, str) or not client:
+            raise SignatureError(f"cannot read signature {path}")
+        if not isinstance(version, str) or not version:
+            raise SignatureError(f"cannot read signature {path}")
+        if not isinstance(classes, list) or not classes or not all(isinstance(name, str) and name for name in classes):
+            raise SignatureError(f"cannot read signature {path}")
+        streams.append(_Stream(client, version, tuple(classes)))
+    return streams
 
 
 def _streams(case: Case) -> list[_Stream]:
