@@ -284,6 +284,19 @@ def case_file(case_id: str) -> Path:
     return cases_dir() / validate_case_id(case_id) / "case.json"
 
 
+def list_cases() -> list[str]:
+    """Return the ids of cases stored on this machine, sorted by id."""
+
+    root = cases_dir()
+    if not root.is_dir():
+        return []
+    found: list[str] = []
+    for path in root.iterdir():
+        if path.is_dir() and (path / "case.json").is_file() and _CASE_ID.fullmatch(path.name):
+            found.append(path.name)
+    return sorted(found)
+
+
 def load_case(case_id: str) -> Case:
     path = case_file(case_id)
     if not path.is_file():
