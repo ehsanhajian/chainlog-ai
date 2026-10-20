@@ -48,7 +48,7 @@ def test_a_case_with_no_earlier_history_is_the_first_time(home: Path) -> None:
     _save("only", [_event("execution", "geth", "leveldb: closed", "2026-10-08T06:13:58Z", 0)])
     code, stdout, stderr = run("patterns", "--case", "only")
     assert code == 0, stderr
-    assert stdout == "case only\nfirst time on this machine\n"
+    assert stdout == "case only\nversion geth unknown\nfirst time on this machine\n"
     assert "leveldb" not in stdout
 
 
@@ -61,7 +61,7 @@ def test_patterns_lists_an_earlier_case_with_the_same_order(home: Path) -> None:
     _save("new", [_event("execution", "geth", text, stamp, index) for index, (text, stamp) in enumerate(shared)])
     code, stdout, stderr = run("patterns", "--case", "new")
     assert code == 0, stderr
-    assert stdout == "case new\n1 earlier case\nold\n"
+    assert stdout == "case new\nversion geth unknown\n1 earlier case\nold\n"
 
 
 def test_an_extra_class_keeps_a_similar_order(home: Path) -> None:
@@ -82,7 +82,7 @@ def test_an_extra_class_keeps_a_similar_order(home: Path) -> None:
     )
     code, stdout, stderr = run("patterns", "--case", "new")
     assert code == 0, stderr
-    assert stdout == "case new\n1 earlier case\nold\n"
+    assert stdout == "case new\nversion geth unknown\n1 earlier case\nold\n"
 
 
 def test_a_reversed_order_does_not_match(home: Path) -> None:
@@ -102,7 +102,7 @@ def test_a_reversed_order_does_not_match(home: Path) -> None:
     )
     code, stdout, stderr = run("patterns", "--case", "new")
     assert code == 0, stderr
-    assert stdout == "case new\n0 earlier cases\n"
+    assert stdout == "case new\nversion geth unknown\n0 earlier cases\n"
 
 
 def test_a_different_client_does_not_match(home: Path) -> None:
@@ -116,7 +116,7 @@ def test_a_different_client_does_not_match(home: Path) -> None:
     )
     code, stdout, stderr = run("patterns", "--case", "new")
     assert code == 0, stderr
-    assert stdout == "case new\n0 earlier cases\n"
+    assert stdout == "case new\nversion geth unknown\n0 earlier cases\n"
 
 
 def test_a_different_version_does_not_match(home: Path) -> None:
@@ -136,7 +136,7 @@ def test_a_different_version_does_not_match(home: Path) -> None:
     )
     code, stdout, stderr = run("patterns", "--case", "new")
     assert code == 0, stderr
-    assert stdout == "case new\n0 earlier cases\n"
+    assert stdout == "case new\nversion geth Geth/v1.14.0\n0 earlier cases\n"
 
 
 def test_the_same_version_matches(home: Path) -> None:
@@ -150,7 +150,7 @@ def test_the_same_version_matches(home: Path) -> None:
     _save("new", events("08"))
     code, stdout, stderr = run("patterns", "--case", "new")
     assert code == 0, stderr
-    assert stdout == "case new\n1 earlier case\nold\n"
+    assert stdout == "case new\nversion geth Geth/v1.13.15\n1 earlier case\nold\n"
 
 
 def test_a_later_case_is_not_an_earlier_match(home: Path) -> None:
@@ -158,7 +158,7 @@ def test_a_later_case_is_not_an_earlier_match(home: Path) -> None:
     _save("new", [_event("execution", "geth", "leveldb: closed", "2026-10-08T06:13:58Z", 0)])
     code, stdout, stderr = run("patterns", "--case", "old")
     assert code == 0, stderr
-    assert stdout == "case old\nfirst time on this machine\n"
+    assert stdout == "case old\nversion geth unknown\nfirst time on this machine\n"
 
 
 def test_patterns_names_every_earlier_match(home: Path) -> None:
@@ -166,7 +166,7 @@ def test_patterns_names_every_earlier_match(home: Path) -> None:
         _save(case_id, [_event("execution", "geth", "leveldb: closed", f"2026-10-{day}T06:13:58Z", 0)])
     code, stdout, stderr = run("patterns", "--case", "now")
     assert code == 0, stderr
-    assert stdout == "case now\n2 earlier cases\naaa\nbbb\n"
+    assert stdout == "case now\nversion geth unknown\n2 earlier cases\naaa\nbbb\n"
 
 
 def test_an_unknown_case_is_a_usage_error(home: Path) -> None:
@@ -186,10 +186,10 @@ def test_the_sample_log_matches_an_earlier_copy(home: Path) -> None:
     os.utime(home / "cases" / "later" / "case.json", (2, 2))
     code, stdout, stderr = run("patterns", "--case", "later")
     assert code == 0, stderr
-    assert stdout == "case later\n1 earlier case\nearlier\n"
+    assert stdout == "case later\nversion geth unknown\n1 earlier case\nearlier\n"
     code, stdout, stderr = run("patterns", "--case", "earlier")
     assert code == 0, stderr
-    assert stdout == "case earlier\nfirst time on this machine\n"
+    assert stdout == "case earlier\nversion geth unknown\nfirst time on this machine\n"
 
 
 def test_the_export_leaves_out_the_log_line_and_the_host(home: Path, tmp_path: Path) -> None:
@@ -202,7 +202,7 @@ def test_the_export_leaves_out_the_log_line_and_the_host(home: Path, tmp_path: P
     destination = tmp_path / "copied.signature.json"
     code, stdout, stderr = run("patterns", "--case", "copied", "--export", str(destination))
     assert code == 0, stderr
-    assert stdout == f"case copied\nsignature {destination}\n"
+    assert stdout == f"case copied\nversion geth unknown\nsignature {destination}\n"
     text = destination.read_text(encoding="utf-8")
     assert "Failed to persist ancient block" not in text
     assert "db-host.internal" not in text
@@ -266,6 +266,112 @@ def test_a_bad_signature_is_a_usage_error(home: Path, tmp_path: Path) -> None:
     assert code == 3
     assert stdout == ""
     assert f"cannot read signature {signature}" in stderr
+
+
+def test_a_banner_names_the_printed_version(home: Path) -> None:
+    root = Path(__file__).parents[1] / "examples"
+    code, _stdout, stderr = run("ingest", "--case", "beacon-version", "--consensus", str(root / "beacon.log"))
+    assert code == 0, stderr
+    code, stdout, stderr = run("patterns", "--case", "beacon-version")
+    assert code == 0, stderr
+    assert "version lighthouse Lighthouse/v5.3.0\n" in stdout
+    assert "unknown" not in stdout
+
+
+def test_a_startup_line_without_a_version_is_unknown(home: Path) -> None:
+    _save(
+        "plain",
+        [
+            _event("execution", "geth", "INFO Starting Geth on Ethereum mainnet...", "2026-10-08T06:00:00Z", 0),
+            _event("execution", "geth", "leveldb: closed", "2026-10-08T06:13:58Z", 1),
+        ],
+    )
+    code, stdout, stderr = run("patterns", "--case", "plain")
+    assert code == 0, stderr
+    assert stdout == "case plain\nversion geth unknown\nfirst time on this machine\n"
+
+
+def test_a_version_buried_in_an_error_line_is_ignored(home: Path) -> None:
+    _save(
+        "buried",
+        [_event("execution", "geth", 'err="leveldb: closed" build v9.9.9', "2026-10-08T06:13:58Z", 0)],
+    )
+    code, stdout, stderr = run("patterns", "--case", "buried")
+    assert code == 0, stderr
+    assert stdout == "case buried\nversion geth unknown\nfirst time on this machine\n"
+
+
+def test_a_pattern_after_a_version_change_names_both_versions(home: Path, tmp_path: Path) -> None:
+    _save(
+        "changed",
+        [
+            _event(
+                "execution",
+                "geth",
+                "INFO Starting Geth/v1.13.15 on db-host.internal",
+                "2026-10-08T06:00:00Z",
+                0,
+            ),
+            _event(
+                "execution",
+                "geth",
+                "INFO Starting Geth/v1.14.0 on db-host.internal",
+                "2026-10-08T06:10:00Z",
+                1,
+            ),
+            _event("execution", "geth", "leveldb: closed", "2026-10-08T06:13:58Z", 2),
+        ],
+    )
+    destination = tmp_path / "changed.signature.json"
+    code, stdout, stderr = run("patterns", "--case", "changed", "--export", str(destination))
+    assert code == 0, stderr
+    assert stdout == (
+        "case changed\n"
+        "version geth Geth/v1.13.15 to Geth/v1.14.0\n"
+        f"signature {destination}\n"
+    )
+    assert "safe" not in stdout
+    assert "upgrade" not in stdout
+    text = destination.read_text(encoding="utf-8")
+    assert "leveldb: closed" not in text
+    assert "db-host.internal" not in text
+    assert "safe" not in text
+    assert "upgrade" not in text
+    payload = json.loads(text)
+    assert payload["streams"] == [
+        {
+            "client": "geth",
+            "version": "Geth/v1.14.0",
+            "previous": "Geth/v1.13.15",
+            "classes": ["database-closed"],
+        }
+    ]
+
+
+def test_classes_after_a_restart_belong_to_the_new_version(home: Path) -> None:
+    _save(
+        "restarted",
+        [
+            _event("execution", "geth", "version: Geth/v1.13.15", "2026-10-08T06:00:00Z", 0),
+            _event("execution", "geth", "leveldb: closed", "2026-10-08T06:13:58Z", 1),
+            _event("execution", "geth", "version=v1.14.0", "2026-10-08T06:20:00Z", 2),
+            _event(
+                "execution",
+                "geth",
+                "Engine API newPayload context deadline exceeded",
+                "2026-10-08T06:21:00Z",
+                3,
+            ),
+        ],
+    )
+    code, stdout, stderr = run("patterns", "--case", "restarted")
+    assert code == 0, stderr
+    assert stdout == (
+        "case restarted\n"
+        "version geth Geth/v1.13.15\n"
+        "version geth Geth/v1.13.15 to v1.14.0\n"
+        "first time on this machine\n"
+    )
 
 
 def test_patterns_needs_a_case_or_a_signature(home: Path) -> None:

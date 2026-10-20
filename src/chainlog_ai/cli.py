@@ -192,6 +192,8 @@ def build_parser() -> argparse.ArgumentParser:
             "A match shares a class, the client, the version, and a similar order of classes. "
             "The command prints how many earlier cases matched and their ids. "
             "A case with no earlier case on this machine says this is the first time. "
+            "The pattern names the client version from a banner or startup line, or unknown when the logs did not print one. "
+            "A pattern that begins after a version change names the previous version and the new version. "
             "--export writes a signature of class ids, client, version, and class order. "
             "The signature has no log lines and no host names. "
             "--signature reports match or no match against local cases."
