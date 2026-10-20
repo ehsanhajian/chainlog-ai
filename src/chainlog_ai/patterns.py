@@ -11,7 +11,12 @@ from pathlib import Path
 from chainlog_ai.case import Case, Event, case_file, list_cases, load_case
 from chainlog_ai.classify import classify_case
 
-_VERSION = re.compile(r"version[:=]\s*([A-Za-z0-9][A-Za-z0-9._/\-]*)", re.IGNORECASE)
+_BANNER = re.compile(r"\bStarting\b|\bstarted\b|\bversion\s*[:=]", re.IGNORECASE)
+_LABELED = re.compile(r"version\s*[:=]\s*([A-Za-z0-9][A-Za-z0-9._/\-]*)", re.IGNORECASE)
+_EMBEDDED = re.compile(
+    r"\b([A-Za-z][A-Za-z0-9]*\/v?\d+\.\d+\.\d+(?:[-.+][A-Za-z0-9.]+)*|v\d+\.\d+\.\d+(?:[-.+][A-Za-z0-9.]+)*)\b"
+)
+_BARE = re.compile(r"\b(\d+\.\d+\.\d+(?:[-.+][A-Za-z0-9.]+)*)\b")
 _CLUSTER = {"kubernetes", "kubernetes-previous"}
 _FAR = datetime.max.replace(tzinfo=timezone.utc)
 
@@ -25,6 +30,7 @@ class _Stream:
     client: str
     version: str
     classes: tuple[str, ...]
+    previous: str | None = None
 
 
 def find_patterns(case_id: str) -> str:
@@ -36,34 +42,45 @@ def find_patterns(case_id: str) -> str:
     for item in ids:
         classify_case(item)
     current = load_case(case_id)
+    current_streams = _streams(current)
     others = [load_case(item) for item in ids if item != case_id]
     earlier = sorted(
         (case for case in others if _is_earlier(case, current)),
         key=lambda case: (_earliest(case) is None, _earliest(case) or _FAR, case.id),
     )
-    matched = [case.id for case in earlier if _matches(current, case)]
-    return _format(current.id, matched, has_earlier=bool(earlier))
+    matched = [case.id for case in earlier if _streams_match(current_streams, _streams(case))]
+    return _format(current.id, matched, has_earlier=bool(earlier), streams=current_streams)
 
 
-def _format(case_id: str, matched: list[str], *, has_earlier: bool) -> str:
+def _format(case_id: str, matched: list[str], *, has_earlier: bool, streams: list[_Stream]) -> str:
+    lines = [f"case {case_id}", *[_version_line(stream) for stream in streams]]
     if not has_earlier:
-        return f"case {case_id}\nfirst time on this machine"
+        lines.append("first time on this machine")
+        return "\n".join(lines)
     count = len(matched)
     noun = "case" if count == 1 else "cases"
-    lines = [f"case {case_id}", f"{count} earlier {noun}", *matched]
+    lines.append(f"{count} earlier {noun}")
+    lines.extend(matched)
     return "\n".join(lines)
+
+
+def _version_line(stream: _Stream) -> str:
+    if stream.previous:
+        return f"version {stream.client} {stream.previous} to {stream.version}"
+    return f"version {stream.client} {stream.version}"
 
 
 def write_signature(case_id: str, path: Path) -> str:
     """Write a signature of class, client, version, and class order. No log lines."""
 
     classify_case(case_id)
-    payload = {"streams": [_stream_dict(stream) for stream in _streams(load_case(case_id))]}
+    streams = _streams(load_case(case_id))
+    payload = {"streams": [_stream_dict(stream) for stream in streams]}
     try:
         path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     except OSError as exc:
         raise SignatureError(f"cannot write signature {path}") from exc
-    return f"case {case_id}\nsignature {path}"
+    return "\n".join([f"case {case_id}", *[_version_line(stream) for stream in streams], f"signature {path}"])
 
 
 def match_signature(path: Path) -> str:
@@ -83,10 +100,6 @@ def match_signature(path: Path) -> str:
     return "\n".join(["match", *matched])
 
 
-def _matches(current: Case, earlier: Case) -> bool:
-    return _streams_match(_streams(current), _streams(earlier))
-
-
 def _streams_match(left: list[_Stream], right: list[_Stream]) -> bool:
     for one in left:
         for other in right:
@@ -96,7 +109,19 @@ def _streams_match(left: list[_Stream], right: list[_Stream]) -> bool:
 
 
 def _stream_dict(stream: _Stream) -> dict[str, object]:
-    return {"client": stream.client, "version": stream.version, "classes": list(stream.classes)}
+    payload: dict[str, object] = {
+        "client": stream.client,
+        "version": stream.version,
+        "classes": list(stream.classes),
+    }
+    if stream.previous:
+        payload = {
+            "client": stream.client,
+            "version": stream.version,
+            "previous": stream.previous,
+            "classes": list(stream.classes),
+        }
+    return payload
 
 
 def _read_signature(path: Path) -> list[_Stream]:
@@ -119,7 +144,10 @@ def _read_signature(path: Path) -> list[_Stream]:
             raise SignatureError(f"cannot read signature {path}")
         if not isinstance(classes, list) or not classes or not all(isinstance(name, str) and name for name in classes):
             raise SignatureError(f"cannot read signature {path}")
-        streams.append(_Stream(client, version, tuple(classes)))
+        previous = item.get("previous")
+        if previous is not None and (not isinstance(previous, str) or not previous or previous == version):
+            raise SignatureError(f"cannot read signature {path}")
+        streams.append(_Stream(client, version, tuple(classes), previous=previous))
     return streams
 
 
@@ -129,19 +157,61 @@ def _streams(case: Case) -> list[_Stream]:
         grouped.setdefault(_client_key(event), []).append((index, event))
     streams: list[_Stream] = []
     for client, items in grouped.items():
-        ordered = sorted(items, key=lambda item: _event_key(item[1], item[0]))
-        version = "unknown"
-        classes: list[str] = []
-        for _index, event in ordered:
-            if version == "unknown":
-                found = _VERSION.search(event.excerpt)
-                if found is not None:
-                    version = found.group(1)
-            if event.failure_class and (not classes or classes[-1] != event.failure_class):
-                classes.append(event.failure_class)
-        if classes:
-            streams.append(_Stream(client, version, tuple(classes)))
+        streams.extend(_client_streams(client, items))
+    streams.sort(key=lambda stream: stream.client)
     return streams
+
+
+def _client_streams(client: str, items: list[tuple[int, Event]]) -> list[_Stream]:
+    ordered = sorted(items, key=lambda item: _event_key(item[1], item[0]))
+    streams: list[_Stream] = []
+    classes: list[str] = []
+    current: str | None = None
+    segment_version: str | None = None
+    segment_previous: str | None = None
+
+    def flush() -> None:
+        nonlocal classes
+        if not classes:
+            return
+        streams.append(
+            _Stream(client, segment_version or "unknown", tuple(classes), previous=segment_previous)
+        )
+        classes = []
+
+    for _index, event in ordered:
+        found = _version_on(event.excerpt)
+        if found is not None and found != current:
+            if classes:
+                flush()
+                segment_previous = current or "unknown"
+            elif current is not None:
+                segment_previous = current
+            else:
+                segment_previous = None
+            segment_version = found
+            current = found
+        if event.failure_class and (not classes or classes[-1] != event.failure_class):
+            classes.append(event.failure_class)
+    flush()
+    return streams
+
+
+def _version_on(excerpt: str) -> str | None:
+    """Return the version printed on a banner or startup line."""
+
+    if _BANNER.search(excerpt) is None:
+        return None
+    labeled = _LABELED.search(excerpt)
+    if labeled is not None:
+        return labeled.group(1)
+    embedded = _EMBEDDED.search(excerpt)
+    if embedded is not None:
+        return embedded.group(1)
+    bare = _BARE.search(excerpt)
+    if bare is not None:
+        return bare.group(1)
+    return None
 
 
 def _similar(left: tuple[str, ...], right: tuple[str, ...]) -> bool:
