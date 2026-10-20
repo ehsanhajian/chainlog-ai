@@ -1,5 +1,6 @@
 import contextlib
 import io
+import json
 import os
 from pathlib import Path
 
@@ -189,3 +190,89 @@ def test_the_sample_log_matches_an_earlier_copy(home: Path) -> None:
     code, stdout, stderr = run("patterns", "--case", "earlier")
     assert code == 0, stderr
     assert stdout == "case earlier\nfirst time on this machine\n"
+
+
+def test_the_export_leaves_out_the_log_line_and_the_host(home: Path, tmp_path: Path) -> None:
+    root = Path(__file__).parents[1] / "examples"
+    log = tmp_path / "db-host.internal" / "geth.log"
+    log.parent.mkdir()
+    log.write_bytes((root / "geth.log").read_bytes())
+    code, _stdout, stderr = run("ingest", "--case", "copied", "--execution", str(log))
+    assert code == 0, stderr
+    destination = tmp_path / "copied.signature.json"
+    code, stdout, stderr = run("patterns", "--case", "copied", "--export", str(destination))
+    assert code == 0, stderr
+    assert stdout == f"case copied\nsignature {destination}\n"
+    text = destination.read_text(encoding="utf-8")
+    assert "Failed to persist ancient block" not in text
+    assert "db-host.internal" not in text
+    payload = json.loads(text)
+    assert list(payload) == ["streams"]
+    geth = next(item for item in payload["streams"] if item["client"] == "geth")
+    assert geth["version"] == "unknown"
+    assert geth["classes"][0] == "database-closed"
+    assert "engine-timeout" in geth["classes"]
+    assert list(geth) == ["client", "version", "classes"]
+
+
+def test_a_signature_matches_a_local_case(home: Path, tmp_path: Path) -> None:
+    _save("local", [_event("execution", "geth", "leveldb: closed", "2026-10-08T06:13:58Z", 0)])
+    signature = tmp_path / "remote.signature.json"
+    signature.write_text(
+        json.dumps(
+            {"streams": [{"client": "geth", "version": "unknown", "classes": ["database-closed"]}]}
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    code, stdout, stderr = run("patterns", "--signature", str(signature))
+    assert code == 0, stderr
+    assert stdout == "match\nlocal\n"
+
+
+def test_a_signature_with_no_local_match_says_no_match(home: Path, tmp_path: Path) -> None:
+    _save(
+        "local",
+        [
+            _event("execution", "geth", "leveldb: closed", "2026-10-08T06:13:58Z", 0),
+            _event("execution", "geth", "Engine API newPayload context deadline exceeded", "2026-10-08T06:14:01Z", 1),
+        ],
+    )
+    signature = tmp_path / "remote.signature.json"
+    signature.write_text(
+        json.dumps(
+            {
+                "streams": [
+                    {
+                        "client": "geth",
+                        "version": "unknown",
+                        "classes": ["engine-timeout", "database-closed"],
+                    }
+                ]
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    code, stdout, stderr = run("patterns", "--signature", str(signature))
+    assert code == 0, stderr
+    assert stdout == "no match\n"
+
+
+def test_a_bad_signature_is_a_usage_error(home: Path, tmp_path: Path) -> None:
+    signature = tmp_path / "broken.signature.json"
+    signature.write_text("{", encoding="utf-8")
+    code, stdout, stderr = run("patterns", "--signature", str(signature))
+    assert code == 3
+    assert stdout == ""
+    assert f"cannot read signature {signature}" in stderr
+
+
+def test_patterns_needs_a_case_or_a_signature(home: Path) -> None:
+    code, stdout, stderr = run("patterns")
+    assert code == 3
+    assert stdout == ""
+    assert "patterns needs a case id or a signature file" in stderr
+    code, stdout, stderr = run("patterns", "--case", "only", "--signature", "remote.json")
+    assert code == 3
+    assert "patterns takes a signature or a case, not both" in stderr
