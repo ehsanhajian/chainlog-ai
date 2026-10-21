@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import sys
 from pathlib import Path
 
 from chainlog_ai import __version__
-from chainlog_ai.ask import answer
+from chainlog_ai.ask import REMOTE_NOTICE, RemoteError, answer, case_is_redacted, send_remote
 from chainlog_ai.case import CaseError, CaseNotFoundError, Event, load_case
 from chainlog_ai.classify import CatalogError, classify_case
 from chainlog_ai.ingest import SOURCES, InputError, ingest
@@ -213,10 +214,18 @@ def build_parser() -> argparse.ArgumentParser:
             "The question is an argument and a case id is required. "
             "With no model configured, the answer comes from the cause and the runbook, and it cites the timeline rows it used. "
             "For each cited class it prints the next read-only checks and the source of those checks. "
-            "An answer that cannot cite a row says the case does not contain that."
+            "An answer that cannot cite a row says the case does not contain that. "
+            "--remote is off unless this invocation sets it. "
+            "It prints that a remote call is about to happen, then sends the question, the cited rows, and the runbook text. "
+            "The call is refused when redaction did not run."
         ),
     )
     ask_parser.add_argument("--case", required=True, help="Case id printed by ingest")
+    ask_parser.add_argument(
+        "--remote",
+        action="store_true",
+        help="Send the question, cited rows, and runbook text to CHAINLOG_AI_REMOTE_URL. Off unless this invocation sets it.",
+    )
     ask_parser.add_argument("question", help="Question to answer from the case")
     ask_parser.set_defaults(func=_cmd_ask)
     return parser
@@ -425,12 +434,30 @@ def _cmd_ask(args: argparse.Namespace) -> int:
         return 3
     try:
         classify_case(args.case)
+        case = load_case(args.case)
         color, width = _terminal_view()
-        text, cited = answer(load_case(args.case), question, color=color, width=width)
+        text, cited, payload = answer(case, question, color=color, width=width)
     except CaseNotFoundError as exc:
         print(exc, file=sys.stderr)
         return 3
     except (CaseError, CatalogError, TimelineError) as exc:
+        print(exc, file=sys.stderr)
+        return 3
+    if not args.remote or payload is None:
+        print(text)
+        return 0 if cited else 1
+    if not case_is_redacted(case):
+        print("remote call refused: redaction did not run", file=sys.stderr)
+        return 3
+    url = os.environ.get("CHAINLOG_AI_REMOTE_URL", "").strip()
+    if not url:
+        print("remote call refused: no remote model configured", file=sys.stderr)
+        print(text)
+        return 3
+    print(REMOTE_NOTICE, flush=True)
+    try:
+        send_remote(url, payload)
+    except RemoteError as exc:
         print(exc, file=sys.stderr)
         return 3
     print(text)

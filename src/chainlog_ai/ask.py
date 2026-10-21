@@ -1,15 +1,20 @@
-"""Answer a question from the case without calling a model."""
+"""Answer a question from the case. A remote model stays off unless asked."""
 
 from __future__ import annotations
 
 import json
 import re
+import urllib.error
+import urllib.request
 from importlib.resources import files
 
 from chainlog_ai.case import Case, Event
+from chainlog_ai.redact import redact_excerpt
 from chainlog_ai.style import paint_severity, paint_source
 from chainlog_ai.timeline import timeline_rows
 from chainlog_ai.why import explain
+
+REMOTE_NOTICE = "remote call about to happen: question, cited rows, and runbook text"
 
 _Row = tuple[Event, str]
 _SLOT_BEFORE = re.compile(r"slot before the miss", re.IGNORECASE)
@@ -19,6 +24,10 @@ _CAUSE = re.compile(r"\b(?:why|cause)\b|\bwhat (?:happened|failed|went wrong)\b"
 _MISS = re.compile(r"missed attestation|missed block proposal|missed proposal", re.IGNORECASE)
 _MISS_CLASS = {"missed-attestation", "missed-proposal"}
 _CLUSTER = {"kubernetes", "kubernetes-previous"}
+class RemoteError(Exception):
+    """The remote call was refused or did not complete."""
+
+
 _STOP = {
     "what",
     "when",
@@ -64,32 +73,77 @@ def answer(
     *,
     color: bool = False,
     width: int | None = None,
-) -> tuple[str, bool]:
+) -> tuple[str, bool, dict[str, object] | None]:
     """Answer from the cause and the runbook, citing timeline rows.
 
-    No model is called. An answer that cannot cite a row says the case does
-    not contain that.
+    The third value is the remote payload: the question, the cited rows, and
+    the runbook text. Nothing is sent from here. An answer that cannot cite a
+    row says the case does not contain that and has no payload.
     """
 
-    rows = timeline_rows(case, color=color, width=width)
-    chosen = _select(rows, question)
+    plain = timeline_rows(case)
+    chosen = _select(plain, question)
     if chosen is None:
-        text, cited = explain(case, color=color, width=width)
-        if not _cited_rows(rows, text):
-            return _missing(case.id), False
-        return _with_runbook(text, _cited_rows(rows, text)), True
+        plain_text, _cited = explain(case)
+        cited_plain = _cited_rows(plain, plain_text)
+        if not cited_plain:
+            return _missing(case.id), False, None
+        display = plain_text
+        if color or width is not None:
+            display = explain(case, color=color, width=width)[0]
+        notes = _runbook_lines(cited_plain)
+        return _with_runbook(display, cited_plain), True, _payload(question, cited_plain, notes)
     if not chosen:
-        return _missing(case.id), False
+        return _missing(case.id), False, None
+    shown = _display_rows(case, color=color, width=width)
     lines = [f"case {case.id}"]
     for event, text in chosen:
         lines.append(_lead(event, color=color))
-        lines.append(text)
-    lines.extend(_runbook_lines(chosen))
-    return "\n".join(lines), True
+        lines.append(shown.get(id(event), text))
+    notes = _runbook_lines(chosen)
+    lines.extend(notes)
+    return "\n".join(lines), True, _payload(question, chosen, notes)
+
+
+def case_is_redacted(case: Case) -> bool:
+    """Return whether every stored excerpt is unchanged by redaction."""
+
+    return all(redact_excerpt(event.excerpt) == event.excerpt for event in case.events)
+
+
+def send_remote(url: str, payload: dict[str, object]) -> None:
+    """POST the payload as JSON. The body is the question, rows, and runbook."""
+
+    body = json.dumps(payload).encode("utf-8")
+    request = urllib.request.Request(
+        url,
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            response.read()
+    except urllib.error.URLError as exc:
+        raise RemoteError(f"remote call failed: {exc.reason}") from exc
 
 
 def _missing(case_id: str) -> str:
     return f"case {case_id}\nthe case does not contain that"
+
+
+def _payload(question: str, rows: list[_Row], notes: list[str]) -> dict[str, object]:
+    return {
+        "question": question,
+        "rows": [text for _event, text in rows],
+        "runbook": notes,
+    }
+
+
+def _display_rows(case: Case, *, color: bool, width: int | None) -> dict[int, str]:
+    if not color and width is None:
+        return {}
+    return {id(event): text for event, text in timeline_rows(case, color=color, width=width)}
 
 
 def _select(rows: list[_Row], question: str) -> list[_Row] | None:

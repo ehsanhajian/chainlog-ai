@@ -2,11 +2,14 @@ import contextlib
 import io
 import json
 import re
+import sys
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 import pytest
 
-from chainlog_ai.ask import _parse_runbook
+from chainlog_ai.ask import _parse_runbook, send_remote
 from chainlog_ai.case import Case, Event, save_case
 from chainlog_ai.cli import main
 
@@ -201,6 +204,141 @@ def test_every_primary_class_has_a_sourced_read_only_check() -> None:
         for text, check_source in checks:
             assert check_source
             assert forbidden.search(text) is None
+
+
+def test_ask_sends_nothing_unless_this_invocation_passes_remote(home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[object] = []
+
+    def explode(*_args: object, **_kwargs: object) -> None:
+        calls.append(True)
+        raise AssertionError("urlopen")
+
+    monkeypatch.setattr("urllib.request.urlopen", explode)
+    save_case(
+        Case(
+            id="db",
+            events=[_event("execution", "geth", 'err="leveldb: closed"', "2026-10-08T06:13:58Z", 0)],
+        )
+    )
+    code, stdout, stderr = run("ask", "--case", "db", "why did it fail")
+    assert code == 0, stderr
+    assert calls == []
+    assert "remote call" not in stdout
+    assert "remote call" not in stderr
+
+
+def test_remote_sends_the_question_rows_and_runbook(home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    sent: list[tuple[str, dict[str, object]]] = []
+
+    def spy(url: str, payload: dict[str, object]) -> None:
+        assert "remote call about to happen: question, cited rows, and runbook text" in sys.stdout.getvalue()
+        sent.append((url, payload))
+
+    monkeypatch.setattr("chainlog_ai.cli.send_remote", spy)
+    monkeypatch.setenv("CHAINLOG_AI_REMOTE_URL", "http://127.0.0.1:9/model")
+    save_case(
+        Case(
+            id="db",
+            events=[
+                _event(
+                    "execution",
+                    "geth",
+                    'err="leveldb: closed" password=[redacted]',
+                    "2026-10-08T06:13:58Z",
+                    0,
+                )
+            ],
+        )
+    )
+    code, stdout, stderr = run("ask", "--remote", "--case", "db", "why did it fail")
+    assert code == 0, stderr
+    assert stdout.startswith("remote call about to happen: question, cited rows, and runbook text\n")
+    assert len(sent) == 1
+    url, payload = sent[0]
+    assert url == "http://127.0.0.1:9/model"
+    assert list(payload) == ["question", "rows", "runbook"]
+    assert payload["question"] == "why did it fail"
+    encoded = json.dumps(payload)
+    assert "leveldb: closed" in encoded
+    assert "password=[redacted]" in encoded
+    assert "runbook database-closed:" in encoded
+    assert "/tmp/execution.log" not in encoded
+    assert "hunter2" not in encoded
+
+
+def test_remote_is_refused_when_redaction_did_not_run(home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def explode(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("urlopen")
+
+    monkeypatch.setattr("urllib.request.urlopen", explode)
+    monkeypatch.setenv("CHAINLOG_AI_REMOTE_URL", "http://127.0.0.1:9/model")
+    save_case(
+        Case(
+            id="db",
+            events=[
+                _event(
+                    "execution",
+                    "geth",
+                    'err="leveldb: closed" password=hunter2',
+                    "2026-10-08T06:13:58Z",
+                    0,
+                )
+            ],
+        )
+    )
+    code, stdout, stderr = run("ask", "--remote", "--case", "db", "why did it fail")
+    assert code == 3
+    assert stdout == ""
+    assert "remote call refused: redaction did not run" in stderr
+    assert "hunter2" not in stdout
+    assert "hunter2" not in stderr
+
+
+def test_remote_is_refused_when_no_model_is_configured(home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def explode(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("urlopen")
+
+    monkeypatch.setattr("urllib.request.urlopen", explode)
+    monkeypatch.delenv("CHAINLOG_AI_REMOTE_URL", raising=False)
+    save_case(
+        Case(
+            id="db",
+            events=[_event("execution", "geth", 'err="leveldb: closed"', "2026-10-08T06:13:58Z", 0)],
+        )
+    )
+    code, stdout, stderr = run("ask", "--remote", "--case", "db", "why did it fail")
+    assert code == 3
+    assert "remote call refused: no remote model configured" in stderr
+    assert "remote call about to happen" not in stdout
+    assert "database-closed" in stdout
+
+
+def test_send_remote_posts_json() -> None:
+    received: dict[str, object] = {}
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:
+            length = int(self.headers.get("Content-Length", "0"))
+            received["body"] = self.rfile.read(length)
+            received["type"] = self.headers.get("Content-Type")
+            self.send_response(204)
+            self.end_headers()
+
+        def log_message(self, _format: str, *_args: object) -> None:
+            return
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.handle_request)
+    thread.start()
+    payload = {"question": "why did it fail", "rows": ["leveldb: closed"], "runbook": ["runbook database-closed: x"]}
+    try:
+        port = server.server_address[1]
+        send_remote(f"http://127.0.0.1:{port}/", payload)
+    finally:
+        thread.join(timeout=5)
+        server.server_close()
+    assert received["type"] == "application/json"
+    assert json.loads(received["body"]) == payload
 
 
 def test_an_unknown_case_is_a_usage_error(home: Path) -> None:
