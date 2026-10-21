@@ -1,0 +1,187 @@
+[
+  {
+    "class": "database-closed",
+    "text": "The execution client closed its database.",
+    "source": "https://github.com/syndtr/goleveldb/blob/master/leveldb/errors.go"
+  },
+  {
+    "class": "engine-timeout",
+    "text": "An engine API call exceeded its deadline.",
+    "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/paris.md"
+  },
+  {
+    "class": "jwt-rejected",
+    "text": "The engine API rejected the JWT.",
+    "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/authentication.md"
+  },
+  {
+    "class": "database-corrupt",
+    "text": "The client reported a corrupt database.",
+    "source": "https://docs.nethermind.io/fundamentals/database"
+  },
+  {
+    "class": "database-lock",
+    "text": "The database lock is held.",
+    "source": "https://github.com/erigontech/erigon"
+  },
+  {
+    "class": "disk-full",
+    "text": "The disk has no space left.",
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/core/rawdb/database.go"
+  },
+  {
+    "class": "permission-denied",
+    "text": "The client could not open a file.",
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/core/rawdb/database.go"
+  },
+  {
+    "class": "invalid-payload",
+    "text": "The execution client rejected the payload.",
+    "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/paris.md"
+  },
+  {
+    "class": "capability-mismatch",
+    "text": "The engine API method is not supported.",
+    "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/cancun.md"
+  },
+  {
+    "class": "peer-banned",
+    "text": "A peer was banned.",
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/p2p/dial.go"
+  },
+  {
+    "class": "discovery-failed",
+    "text": "Peer discovery failed.",
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/p2p/discover/lookup.go"
+  },
+  {
+    "class": "no-peers",
+    "text": "The client has no peers to sync from.",
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/eth/downloader/downloader.go"
+  },
+  {
+    "class": "sync-stalled",
+    "text": "Sync made no progress.",
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/eth/downloader/downloader.go"
+  },
+  {
+    "class": "freezer-rewind",
+    "text": "The ancient store was truncated.",
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/core/rawdb/freezer.go"
+  },
+  {
+    "class": "missed-attestation",
+    "text": "An attestation was missed.",
+    "source": "https://lighthouse-book.sigmaprime.io/faq.html"
+  },
+  {
+    "class": "doppelganger",
+    "text": "A doppelganger was detected.",
+    "source": "https://lighthouse-book.sigmaprime.io/validator_doppelganger.html"
+  },
+  {
+    "class": "weak-subjectivity",
+    "text": "A weak subjectivity check failed.",
+    "source": "https://ethereum.github.io/consensus-specs/specs/phase0/weak-subjectivity/"
+  },
+  {
+    "class": "signer-refused",
+    "text": "The signer refused the request.",
+    "source": "https://docs.web3signer.consensys.io/development/how-to/monitor/metrics"
+  },
+  {
+    "class": "reorg",
+    "text": "The chain reorged.",
+    "source": "https://lighthouse-book.sigmaprime.io/faq.html"
+  },
+  {
+    "class": "clock-not-synced",
+    "text": "The clock is not in sync.",
+    "source": "https://github.com/sigp/lighthouse/issues/2357"
+  },
+  {
+    "class": "relay-timeout",
+    "text": "The builder relay timed out.",
+    "source": "https://github.com/ethereum/builder-specs/blob/main/specs/validator.md"
+  },
+  {
+    "class": "builder-timeout",
+    "text": "The builder timed out.",
+    "source": "https://github.com/prysmaticlabs/prysm/issues/11490"
+  },
+  {
+    "class": "missed-proposal",
+    "text": "A block proposal was missed.",
+    "source": "https://github.com/sigp/lighthouse/issues/5437"
+  },
+  {
+    "class": "checkpoint-sync-failed",
+    "text": "Checkpoint sync was refused.",
+    "source": "https://lighthouse-book.sigmaprime.io/checkpoint-sync.html"
+  },
+  {
+    "class": "fork-choice",
+    "text": "Fork choice failed.",
+    "source": "https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/fork-choice.md"
+  },
+  {
+    "class": "signer-timeout",
+    "text": "The signer timed out.",
+    "source": "https://docs.web3signer.consensys.io/how-to/run-at-scale"
+  },
+  {
+    "class": "slashable",
+    "text": "A slashable duty was prevented.",
+    "source": "https://lighthouse-book.sigmaprime.io/slashing-protection.html"
+  },
+  {
+    "class": "oom-killed",
+    "text": "The container was killed for using too much memory.",
+    "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
+  },
+  {
+    "class": "probe-failed",
+    "text": "A container probe failed.",
+    "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/"
+  },
+  {
+    "class": "killed-externally",
+    "text": "The process was killed from outside the client.",
+    "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/"
+  },
+  {
+    "class": "memory-pressure",
+    "text": "The node has memory pressure.",
+    "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
+  },
+  {
+    "class": "cpu-pressure",
+    "text": "The node does not have enough CPU.",
+    "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/"
+  },
+  {
+    "class": "disk-pressure",
+    "text": "The node has disk pressure.",
+    "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
+  },
+  {
+    "class": "evicted",
+    "text": "The pod was evicted.",
+    "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
+  },
+  {
+    "class": "crash-loop",
+    "text": "The container is restarting.",
+    "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-restarts"
+  },
+  {
+    "class": "volume-mount-failed",
+    "text": "A volume mount failed.",
+    "source": "https://kubernetes.io/docs/concepts/storage/volumes/"
+  },
+  {
+    "class": "node-not-ready",
+    "text": "The node is not ready.",
+    "source": "https://kubernetes.io/docs/concepts/architecture/nodes/#condition"
+  }
+]

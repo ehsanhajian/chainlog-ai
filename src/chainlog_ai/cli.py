@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from chainlog_ai import __version__
+from chainlog_ai.ask import answer
 from chainlog_ai.case import CaseError, CaseNotFoundError, Event, load_case
 from chainlog_ai.classify import CatalogError, classify_case
 from chainlog_ai.ingest import SOURCES, InputError, ingest
@@ -203,6 +204,20 @@ def build_parser() -> argparse.ArgumentParser:
     patterns_parser.add_argument("--export", metavar="FILE", help="Write a redacted signature for another host")
     patterns_parser.add_argument("--signature", metavar="FILE", help="Match a signature against local cases")
     patterns_parser.set_defaults(func=_cmd_patterns)
+
+    ask_parser = commands.add_parser(
+        "ask",
+        help="What should I check next?",
+        description=(
+            "Answer a question from a local case. "
+            "The question is an argument and a case id is required. "
+            "With no model configured, the answer comes from the cause and the runbook, and it cites the timeline rows it used. "
+            "An answer that cannot cite a row says the case does not contain that."
+        ),
+    )
+    ask_parser.add_argument("--case", required=True, help="Case id printed by ingest")
+    ask_parser.add_argument("question", help="Question to answer from the case")
+    ask_parser.set_defaults(func=_cmd_ask)
     return parser
 
 
@@ -396,6 +411,25 @@ def _cmd_why(args: argparse.Namespace) -> int:
         print(exc, file=sys.stderr)
         return 3
     except (CaseError, InputError, CatalogError, TimelineError) as exc:
+        print(exc, file=sys.stderr)
+        return 3
+    print(text)
+    return 0 if cited else 1
+
+
+def _cmd_ask(args: argparse.Namespace) -> int:
+    question = args.question.strip()
+    if not question:
+        print("ask needs a question", file=sys.stderr)
+        return 3
+    try:
+        classify_case(args.case)
+        color, width = _terminal_view()
+        text, cited = answer(load_case(args.case), question, color=color, width=width)
+    except CaseNotFoundError as exc:
+        print(exc, file=sys.stderr)
+        return 3
+    except (CaseError, CatalogError, TimelineError) as exc:
         print(exc, file=sys.stderr)
         return 3
     print(text)
