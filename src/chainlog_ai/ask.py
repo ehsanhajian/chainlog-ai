@@ -184,19 +184,25 @@ def _runbook_lines(rows: list[_Row]) -> list[str]:
         entry = book.get(name)
         if entry is None:
             continue
-        sentence, source = entry
+        sentence, source, checks = entry
         if not sentence or not source:
             continue
         seen.add(name)
         lines.append(f"runbook {name}: {sentence}")
         lines.append(source)
+        for check, check_source in checks:
+            lines.append(f"check: {check}")
+            lines.append(check_source)
     return lines
 
 
-def _runbook() -> dict[str, tuple[str, str]]:
+def _runbook() -> dict[str, tuple[str, str, tuple[tuple[str, str], ...]]]:
     raw = files("chainlog_ai").joinpath("runbook.json").read_text(encoding="utf-8")
-    data = json.loads(raw)
-    found: dict[str, tuple[str, str]] = {}
+    return _parse_runbook(json.loads(raw))
+
+
+def _parse_runbook(data: object) -> dict[str, tuple[str, str, tuple[tuple[str, str], ...]]]:
+    found: dict[str, tuple[str, str, tuple[tuple[str, str], ...]]] = {}
     if not isinstance(data, list):
         return found
     for item in data:
@@ -209,8 +215,27 @@ def _runbook() -> dict[str, tuple[str, str]]:
             continue
         if not name or not sentence.strip() or not source.strip():
             continue
-        found[name] = (sentence.strip(), source.strip())
+        found[name] = (sentence.strip(), source.strip(), _checks(item.get("checks")))
     return found
+
+
+def _checks(raw: object) -> tuple[tuple[str, str], ...]:
+    """Keep read-only checks that name a source. A check without one is left out."""
+
+    if not isinstance(raw, list):
+        return ()
+    found: list[tuple[str, str]] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        text = item.get("text")
+        source = item.get("source")
+        if not isinstance(text, str) or not isinstance(source, str):
+            continue
+        if not text.strip() or not source.strip():
+            continue
+        found.append((text.strip(), source.strip()))
+    return tuple(found)
 
 
 def _lead(event: Event, *, color: bool) -> str:

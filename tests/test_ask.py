@@ -1,9 +1,12 @@
 import contextlib
 import io
+import json
+import re
 from pathlib import Path
 
 import pytest
 
+from chainlog_ai.ask import _parse_runbook
 from chainlog_ai.case import Case, Event, save_case
 from chainlog_ai.cli import main
 
@@ -70,6 +73,8 @@ def test_ask_cites_the_cause_and_the_runbook(home: Path) -> None:
     assert 'err="leveldb: closed"' in stdout
     assert "runbook database-closed: The execution client closed its database." in stdout
     assert "https://github.com/syndtr/goleveldb/blob/master/leveldb/errors.go" in stdout
+    assert "check: Open the execution client log and find the leveldb: closed line." in stdout
+    assert "check: Look at the filesystem availability metric for the execution data volume." in stdout
     assert "model" not in stdout.lower()
 
 
@@ -157,6 +162,45 @@ def test_a_named_slot_cites_that_row(home: Path) -> None:
     assert "Missed attestation slot: 10" in stdout
     assert "slot=11" not in stdout
     assert "runbook missed-attestation: An attestation was missed." in stdout
+
+
+def test_a_check_without_a_source_is_left_out() -> None:
+    parsed = _parse_runbook(
+        [
+            {
+                "class": "database-closed",
+                "text": "The execution client closed its database.",
+                "source": "https://example.com/database",
+                "checks": [
+                    {"text": "Open the execution client log.", "source": "https://example.com/log"},
+                    {"text": "Restart the pod."},
+                    {"text": "Edit the client flag.", "source": ""},
+                ],
+            }
+        ]
+    )
+    _sentence, _source, checks = parsed["database-closed"]
+    assert checks == (("Open the execution client log.", "https://example.com/log"),)
+
+
+def test_every_primary_class_has_a_sourced_read_only_check() -> None:
+    root = Path(__file__).parents[1] / "src" / "chainlog_ai"
+    catalog = json.loads((root / "catalog.json").read_text(encoding="utf-8"))
+    classes = {item["class"] for item in catalog}
+    parsed = _parse_runbook(json.loads((root / "runbook.json").read_text(encoding="utf-8")))
+    forbidden = re.compile(
+            r"\brestart (the|a|this|your)\b|\bedit (the|a|this|your)\b|\bdelete\b"
+            r"|run a signer|run the signer|sign with|kubectl apply|kubectl delete",
+            re.IGNORECASE,
+        )
+    assert classes <= set(parsed)
+    for name in classes:
+        _sentence, source, checks = parsed[name]
+        assert source
+        assert checks
+        for text, check_source in checks:
+            assert check_source
+            assert forbidden.search(text) is None
 
 
 def test_an_unknown_case_is_a_usage_error(home: Path) -> None:

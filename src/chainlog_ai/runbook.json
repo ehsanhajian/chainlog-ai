@@ -2,186 +2,496 @@
   {
     "class": "database-closed",
     "text": "The execution client closed its database.",
-    "source": "https://github.com/syndtr/goleveldb/blob/master/leveldb/errors.go"
+    "source": "https://github.com/syndtr/goleveldb/blob/master/leveldb/errors.go",
+    "checks": [
+      {
+        "text": "Open the execution client log and find the leveldb: closed line.",
+        "source": "https://github.com/syndtr/goleveldb/blob/master/leveldb/errors.go"
+      },
+      {
+        "text": "Look at the filesystem availability metric for the execution data volume.",
+        "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
+      }
+    ]
   },
   {
     "class": "engine-timeout",
     "text": "An engine API call exceeded its deadline.",
-    "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/paris.md"
+    "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/paris.md",
+    "checks": [
+      {
+        "text": "Open the execution log and the consensus log for the engine API timeout on the same slot.",
+        "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/paris.md"
+      }
+    ]
   },
   {
     "class": "jwt-rejected",
     "text": "The engine API rejected the JWT.",
-    "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/authentication.md"
+    "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/authentication.md",
+    "checks": [
+      {
+        "text": "Open the execution log and the consensus log and read the JWT authentication failure.",
+        "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/authentication.md"
+      }
+    ]
   },
   {
     "class": "database-corrupt",
     "text": "The client reported a corrupt database.",
-    "source": "https://docs.nethermind.io/fundamentals/database"
+    "source": "https://docs.nethermind.io/fundamentals/database",
+    "checks": [
+      {
+        "text": "Open the client log and read the corruption error and the database path it names.",
+        "source": "https://docs.nethermind.io/fundamentals/database"
+      }
+    ]
   },
   {
     "class": "database-lock",
     "text": "The database lock is held.",
-    "source": "https://github.com/erigontech/erigon"
+    "source": "https://github.com/erigontech/erigon",
+    "checks": [
+      {
+        "text": "Open the client log and read which lock file the database names.",
+        "source": "https://github.com/erigontech/erigon"
+      }
+    ]
   },
   {
     "class": "disk-full",
     "text": "The disk has no space left.",
-    "source": "https://github.com/ethereum/go-ethereum/blob/master/core/rawdb/database.go"
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/core/rawdb/database.go",
+    "checks": [
+      {
+        "text": "Open the client log and read the no-space error.",
+        "source": "https://github.com/ethereum/go-ethereum/blob/master/core/rawdb/database.go"
+      },
+      {
+        "text": "Look at the filesystem availability metric for the volume named in the log.",
+        "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
+      }
+    ]
   },
   {
     "class": "permission-denied",
     "text": "The client could not open a file.",
-    "source": "https://github.com/ethereum/go-ethereum/blob/master/core/rawdb/database.go"
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/core/rawdb/database.go",
+    "checks": [
+      {
+        "text": "Open the client log and read the path that was denied.",
+        "source": "https://github.com/ethereum/go-ethereum/blob/master/core/rawdb/database.go"
+      },
+      {
+        "text": "Describe the pod and read the volume mount for that path.",
+        "source": "https://kubernetes.io/docs/concepts/storage/volumes/"
+      }
+    ]
   },
   {
     "class": "invalid-payload",
     "text": "The execution client rejected the payload.",
-    "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/paris.md"
+    "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/paris.md",
+    "checks": [
+      {
+        "text": "Open the execution log for status=INVALID and the consensus log for the same slot.",
+        "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/paris.md"
+      }
+    ]
   },
   {
     "class": "capability-mismatch",
     "text": "The engine API method is not supported.",
-    "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/cancun.md"
+    "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/cancun.md",
+    "checks": [
+      {
+        "text": "Open the execution log and the consensus log for the unsupported engine method.",
+        "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/cancun.md"
+      },
+      {
+        "text": "Read the client version on the startup banner.",
+        "source": "https://github.com/ethereum/execution-apis/blob/main/src/engine/cancun.md"
+      }
+    ]
   },
   {
     "class": "peer-banned",
     "text": "A peer was banned.",
-    "source": "https://github.com/ethereum/go-ethereum/blob/master/p2p/dial.go"
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/p2p/dial.go",
+    "checks": [
+      {
+        "text": "Open the execution log and read the banned peer.",
+        "source": "https://github.com/ethereum/go-ethereum/blob/master/p2p/dial.go"
+      },
+      {
+        "text": "Look at the peer count metric.",
+        "source": "https://github.com/ethereum/go-ethereum/blob/master/eth/downloader/downloader.go"
+      }
+    ]
   },
   {
     "class": "discovery-failed",
     "text": "Peer discovery failed.",
-    "source": "https://github.com/ethereum/go-ethereum/blob/master/p2p/discover/lookup.go"
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/p2p/discover/lookup.go",
+    "checks": [
+      {
+        "text": "Open the execution log and read the discovery error.",
+        "source": "https://github.com/ethereum/go-ethereum/blob/master/p2p/discover/lookup.go"
+      },
+      {
+        "text": "Look at the peer count metric.",
+        "source": "https://github.com/ethereum/go-ethereum/blob/master/eth/downloader/downloader.go"
+      }
+    ]
   },
   {
     "class": "no-peers",
     "text": "The client has no peers to sync from.",
-    "source": "https://github.com/ethereum/go-ethereum/blob/master/eth/downloader/downloader.go"
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/eth/downloader/downloader.go",
+    "checks": [
+      {
+        "text": "Open the execution log and read the peer error.",
+        "source": "https://github.com/ethereum/go-ethereum/blob/master/eth/downloader/downloader.go"
+      },
+      {
+        "text": "Look at the peer count metric.",
+        "source": "https://github.com/ethereum/go-ethereum/blob/master/eth/downloader/downloader.go"
+      }
+    ]
   },
   {
     "class": "sync-stalled",
     "text": "Sync made no progress.",
-    "source": "https://github.com/ethereum/go-ethereum/blob/master/eth/downloader/downloader.go"
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/eth/downloader/downloader.go",
+    "checks": [
+      {
+        "text": "Open the execution log and read the stall.",
+        "source": "https://github.com/ethereum/go-ethereum/blob/master/eth/downloader/downloader.go"
+      },
+      {
+        "text": "Look at the chain head metric.",
+        "source": "https://github.com/ethereum/go-ethereum/blob/master/eth/downloader/downloader.go"
+      }
+    ]
   },
   {
     "class": "freezer-rewind",
     "text": "The ancient store was truncated.",
-    "source": "https://github.com/ethereum/go-ethereum/blob/master/core/rawdb/freezer.go"
+    "source": "https://github.com/ethereum/go-ethereum/blob/master/core/rawdb/freezer.go",
+    "checks": [
+      {
+        "text": "Open the execution log and read the ancient store truncation.",
+        "source": "https://github.com/ethereum/go-ethereum/blob/master/core/rawdb/freezer.go"
+      }
+    ]
   },
   {
     "class": "missed-attestation",
     "text": "An attestation was missed.",
-    "source": "https://lighthouse-book.sigmaprime.io/faq.html"
+    "source": "https://lighthouse-book.sigmaprime.io/faq.html",
+    "checks": [
+      {
+        "text": "Open the validator log and the consensus log for the missed slot.",
+        "source": "https://lighthouse-book.sigmaprime.io/faq.html"
+      },
+      {
+        "text": "Look at the attestation effectiveness metric.",
+        "source": "https://lighthouse-book.sigmaprime.io/faq.html"
+      }
+    ]
   },
   {
     "class": "doppelganger",
     "text": "A doppelganger was detected.",
-    "source": "https://lighthouse-book.sigmaprime.io/validator_doppelganger.html"
+    "source": "https://lighthouse-book.sigmaprime.io/validator_doppelganger.html",
+    "checks": [
+      {
+        "text": "Open the validator log and read the doppelganger detection.",
+        "source": "https://lighthouse-book.sigmaprime.io/validator_doppelganger.html"
+      },
+      {
+        "text": "Describe the validator pods and read which ones are running.",
+        "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/"
+      }
+    ]
   },
   {
     "class": "weak-subjectivity",
     "text": "A weak subjectivity check failed.",
-    "source": "https://ethereum.github.io/consensus-specs/specs/phase0/weak-subjectivity/"
+    "source": "https://ethereum.github.io/consensus-specs/specs/phase0/weak-subjectivity/",
+    "checks": [
+      {
+        "text": "Open the consensus log and read the weak subjectivity error.",
+        "source": "https://ethereum.github.io/consensus-specs/specs/phase0/weak-subjectivity/"
+      }
+    ]
   },
   {
     "class": "signer-refused",
     "text": "The signer refused the request.",
-    "source": "https://docs.web3signer.consensys.io/development/how-to/monitor/metrics"
+    "source": "https://docs.web3signer.consensys.io/development/how-to/monitor/metrics",
+    "checks": [
+      {
+        "text": "Open the validator log and the signer log and read the refusal.",
+        "source": "https://docs.web3signer.consensys.io/development/how-to/monitor/metrics"
+      },
+      {
+        "text": "Look at the signer request metric.",
+        "source": "https://docs.web3signer.consensys.io/development/how-to/monitor/metrics"
+      }
+    ]
   },
   {
     "class": "reorg",
     "text": "The chain reorged.",
-    "source": "https://lighthouse-book.sigmaprime.io/faq.html"
+    "source": "https://lighthouse-book.sigmaprime.io/faq.html",
+    "checks": [
+      {
+        "text": "Open the consensus log and read the reorg and the slots it names.",
+        "source": "https://lighthouse-book.sigmaprime.io/faq.html"
+      }
+    ]
   },
   {
     "class": "clock-not-synced",
     "text": "The clock is not in sync.",
-    "source": "https://github.com/sigp/lighthouse/issues/2357"
+    "source": "https://github.com/sigp/lighthouse/issues/2357",
+    "checks": [
+      {
+        "text": "Open the consensus log and read the clock warning.",
+        "source": "https://github.com/sigp/lighthouse/issues/2357"
+      },
+      {
+        "text": "Look at the node clock offset metric.",
+        "source": "https://github.com/sigp/lighthouse/issues/2357"
+      }
+    ]
   },
   {
     "class": "relay-timeout",
     "text": "The builder relay timed out.",
-    "source": "https://github.com/ethereum/builder-specs/blob/main/specs/validator.md"
+    "source": "https://github.com/ethereum/builder-specs/blob/main/specs/validator.md",
+    "checks": [
+      {
+        "text": "Open the builder log and read the relay timeout.",
+        "source": "https://github.com/ethereum/builder-specs/blob/main/specs/validator.md"
+      },
+      {
+        "text": "Look at the relay response time metric.",
+        "source": "https://github.com/ethereum/builder-specs/blob/main/specs/validator.md"
+      }
+    ]
   },
   {
     "class": "builder-timeout",
     "text": "The builder timed out.",
-    "source": "https://github.com/prysmaticlabs/prysm/issues/11490"
+    "source": "https://github.com/prysmaticlabs/prysm/issues/11490",
+    "checks": [
+      {
+        "text": "Open the builder log and the consensus log for the same proposal slot.",
+        "source": "https://github.com/prysmaticlabs/prysm/issues/11490"
+      }
+    ]
   },
   {
     "class": "missed-proposal",
     "text": "A block proposal was missed.",
-    "source": "https://github.com/sigp/lighthouse/issues/5437"
+    "source": "https://github.com/sigp/lighthouse/issues/5437",
+    "checks": [
+      {
+        "text": "Open the validator log and read the missed proposal slot.",
+        "source": "https://github.com/sigp/lighthouse/issues/5437"
+      },
+      {
+        "text": "Look at the proposal metric for that slot.",
+        "source": "https://lighthouse-book.sigmaprime.io/faq.html"
+      }
+    ]
   },
   {
     "class": "checkpoint-sync-failed",
     "text": "Checkpoint sync was refused.",
-    "source": "https://lighthouse-book.sigmaprime.io/checkpoint-sync.html"
+    "source": "https://lighthouse-book.sigmaprime.io/checkpoint-sync.html",
+    "checks": [
+      {
+        "text": "Open the consensus log and read the checkpoint sync refusal.",
+        "source": "https://lighthouse-book.sigmaprime.io/checkpoint-sync.html"
+      }
+    ]
   },
   {
     "class": "fork-choice",
     "text": "Fork choice failed.",
-    "source": "https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/fork-choice.md"
+    "source": "https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/fork-choice.md",
+    "checks": [
+      {
+        "text": "Open the consensus log and read the fork choice error and the slot it names.",
+        "source": "https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/fork-choice.md"
+      }
+    ]
   },
   {
     "class": "signer-timeout",
     "text": "The signer timed out.",
-    "source": "https://docs.web3signer.consensys.io/how-to/run-at-scale"
+    "source": "https://docs.web3signer.consensys.io/how-to/run-at-scale",
+    "checks": [
+      {
+        "text": "Open the validator log and the signer log and read the timeout.",
+        "source": "https://docs.web3signer.consensys.io/how-to/run-at-scale"
+      },
+      {
+        "text": "Look at the signer latency metric.",
+        "source": "https://docs.web3signer.consensys.io/development/how-to/monitor/metrics"
+      }
+    ]
   },
   {
     "class": "slashable",
     "text": "A slashable duty was prevented.",
-    "source": "https://lighthouse-book.sigmaprime.io/slashing-protection.html"
+    "source": "https://lighthouse-book.sigmaprime.io/slashing-protection.html",
+    "checks": [
+      {
+        "text": "Open the validator log and read the slashable attestation or proposal.",
+        "source": "https://lighthouse-book.sigmaprime.io/slashing-protection.html"
+      }
+    ]
   },
   {
     "class": "oom-killed",
     "text": "The container was killed for using too much memory.",
-    "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
+    "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/",
+    "checks": [
+      {
+        "text": "Describe the pod and read the last terminated state.",
+        "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
+      },
+      {
+        "text": "Look at the container memory metric.",
+        "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
+      }
+    ]
   },
   {
     "class": "probe-failed",
     "text": "A container probe failed.",
-    "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/"
+    "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/",
+    "checks": [
+      {
+        "text": "Describe the pod and read the probe event.",
+        "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/"
+      },
+      {
+        "text": "Open the container log for the same time.",
+        "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/"
+      }
+    ]
   },
   {
     "class": "killed-externally",
     "text": "The process was killed from outside the client.",
-    "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/"
+    "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/",
+    "checks": [
+      {
+        "text": "Describe the pod and read the Killing event.",
+        "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/"
+      }
+    ]
   },
   {
     "class": "memory-pressure",
     "text": "The node has memory pressure.",
-    "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
+    "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/",
+    "checks": [
+      {
+        "text": "Describe the node and read the memory pressure condition.",
+        "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
+      },
+      {
+        "text": "Look at the node memory metric.",
+        "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
+      }
+    ]
   },
   {
     "class": "cpu-pressure",
     "text": "The node does not have enough CPU.",
-    "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/"
+    "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/",
+    "checks": [
+      {
+        "text": "Describe the node and read the scheduling event.",
+        "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/"
+      },
+      {
+        "text": "Look at the node CPU metric.",
+        "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/"
+      }
+    ]
   },
   {
     "class": "disk-pressure",
     "text": "The node has disk pressure.",
-    "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
+    "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/",
+    "checks": [
+      {
+        "text": "Describe the node and read the disk pressure condition.",
+        "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
+      },
+      {
+        "text": "Look at the node filesystem availability metric.",
+        "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
+      }
+    ]
   },
   {
     "class": "evicted",
     "text": "The pod was evicted.",
-    "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
+    "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/",
+    "checks": [
+      {
+        "text": "Describe the pod and read the eviction event.",
+        "source": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/"
+      }
+    ]
   },
   {
     "class": "crash-loop",
     "text": "The container is restarting.",
-    "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-restarts"
+    "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-restarts",
+    "checks": [
+      {
+        "text": "Describe the pod and read the restart count.",
+        "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-restarts"
+      },
+      {
+        "text": "Open the previous container log.",
+        "source": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-restarts"
+      }
+    ]
   },
   {
     "class": "volume-mount-failed",
     "text": "A volume mount failed.",
-    "source": "https://kubernetes.io/docs/concepts/storage/volumes/"
+    "source": "https://kubernetes.io/docs/concepts/storage/volumes/",
+    "checks": [
+      {
+        "text": "Describe the pod and read the FailedMount event.",
+        "source": "https://kubernetes.io/docs/concepts/storage/volumes/"
+      }
+    ]
   },
   {
     "class": "node-not-ready",
     "text": "The node is not ready.",
-    "source": "https://kubernetes.io/docs/concepts/architecture/nodes/#condition"
+    "source": "https://kubernetes.io/docs/concepts/architecture/nodes/#condition",
+    "checks": [
+      {
+        "text": "Describe the node and read the Ready condition.",
+        "source": "https://kubernetes.io/docs/concepts/architecture/nodes/#condition"
+      },
+      {
+        "text": "Open the node event for the same time.",
+        "source": "https://kubernetes.io/docs/concepts/architecture/nodes/#condition"
+      }
+    ]
   }
 ]

@@ -212,6 +212,7 @@ def build_parser() -> argparse.ArgumentParser:
             "Answer a question from a local case. "
             "The question is an argument and a case id is required. "
             "With no model configured, the answer comes from the cause and the runbook, and it cites the timeline rows it used. "
+            "For each cited class it prints the next read-only checks and the source of those checks. "
             "An answer that cannot cite a row says the case does not contain that."
         ),
     )
