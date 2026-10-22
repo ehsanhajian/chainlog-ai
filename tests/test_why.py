@@ -486,3 +486,223 @@ def test_the_sample_incident_names_the_cluster(home: Path) -> None:
     assert "window: 2026-10-08T06:10:00Z .. " in stdout
     assert "NodeNotReady: Node ethereum-1 status is now: NodeNotReady" in stdout
     assert "hunter2" not in stdout
+
+
+def test_a_relay_timeout_before_a_missed_proposal_is_the_trigger() -> None:
+    case = Case(
+        id="proposal",
+        events=[
+            _event(
+                "consensus",
+                "request to execution client timed out slot: 10274310",
+                time="2026-10-08T06:13:58Z",
+                client="lighthouse",
+                failure_class="engine-timeout",
+                severity="warning",
+            ),
+            _event(
+                "builder",
+                "error calling getHeader on relay slot: 10274310",
+                time="2026-10-08T06:13:59Z",
+                client="mev-boost",
+                failure_class="relay-timeout",
+                severity="warning",
+            ),
+            _event(
+                "builder",
+                "builder timeout slot: 10274310",
+                time="2026-10-08T06:14:01Z",
+                client="mev-boost",
+                failure_class="builder-timeout",
+                severity="warning",
+            ),
+            _event(
+                "validator",
+                "Missed block proposal slot: 10274311",
+                time="2026-10-08T06:14:20Z",
+                client="lighthouse",
+                failure_class="missed-proposal",
+                severity="warning",
+            ),
+        ],
+    )
+    text, cited = explain(case)
+    assert cited
+    assert "trigger: builder failed with relay-timeout at 2026-10-08T06:13:59Z." in text
+    assert "symptom: validator failed with missed-proposal at 2026-10-08T06:14:20Z." in text
+    assert "missing execution" not in text
+    assert not any(line.startswith("trigger:") and "missed-" in line for line in text.splitlines())
+
+
+def test_a_builder_timeout_before_the_miss_is_the_trigger() -> None:
+    case = Case(
+        id="builder-only",
+        events=[
+            _event(
+                "builder",
+                "builder timeout",
+                time="2026-10-08T06:14:00Z",
+                client="mev-boost",
+                failure_class="builder-timeout",
+                severity="warning",
+            ),
+            _event(
+                "validator",
+                "Missed block proposal",
+                time="2026-10-08T06:14:20Z",
+                client="lighthouse",
+                failure_class="missed-proposal",
+                severity="warning",
+            ),
+        ],
+    )
+    text, cited = explain(case)
+    assert cited
+    assert "trigger: builder failed with builder-timeout at 2026-10-08T06:14:00Z." in text
+    assert "symptom: validator failed with missed-proposal at 2026-10-08T06:14:20Z." in text
+
+
+def test_a_miss_without_builder_lines_stays_a_symptom() -> None:
+    case = Case(
+        id="no-builder",
+        events=[
+            _event(
+                "execution",
+                'err="leveldb: closed"',
+                time="2026-10-08T06:13:58Z",
+                client="geth",
+                failure_class="database-closed",
+                severity="critical",
+            ),
+            _event(
+                "validator",
+                "Missed block proposal slot: 10274311",
+                time="2026-10-08T06:14:20Z",
+                client="lighthouse",
+                failure_class="missed-proposal",
+                severity="warning",
+            ),
+        ],
+    )
+    text, cited = explain(case)
+    assert cited
+    assert "trigger: execution failed with database-closed at 2026-10-08T06:13:58Z." in text
+    assert "symptom: validator failed with missed-proposal at 2026-10-08T06:14:20Z." in text
+    alone = Case(
+        id="miss-only",
+        events=[
+            _event(
+                "consensus",
+                "Missed block proposal slot: 11",
+                time="2026-10-08T06:14:20Z",
+                client="lighthouse",
+                failure_class="missed-proposal",
+                severity="warning",
+            )
+        ],
+    )
+    text, cited = explain(alone)
+    assert not cited
+    assert "trigger:" not in text
+    assert "Missed block proposal slot: 11" in text
+
+
+def test_an_earlier_failure_stays_the_trigger_beside_a_builder_timeout() -> None:
+    case = Case(
+        id="earlier",
+        events=[
+            _event(
+                "kubernetes",
+                "NodeNotReady: node down",
+                time="2026-10-08T06:13:42Z",
+                failure_class="node-not-ready",
+                severity="critical",
+            ),
+            _event(
+                "builder",
+                "error calling getHeader on relay slot: 10274310",
+                time="2026-10-08T06:13:59Z",
+                client="mev-boost",
+                failure_class="relay-timeout",
+                severity="warning",
+            ),
+            _event(
+                "validator",
+                "Missed block proposal slot: 10274311",
+                time="2026-10-08T06:14:20Z",
+                client="lighthouse",
+                failure_class="missed-proposal",
+                severity="warning",
+            ),
+            _event(
+                "consensus",
+                "Missed block proposal slot: 10274311",
+                time="2026-10-08T06:14:20.500Z",
+                client="lighthouse",
+                failure_class="missed-proposal",
+                severity="warning",
+            ),
+        ],
+    )
+    text, cited = explain(case)
+    assert cited
+    assert "trigger: cluster failed with node-not-ready at 2026-10-08T06:13:42Z." in text
+    assert "symptom: validator failed with missed-proposal at 2026-10-08T06:14:20Z." in text
+    assert "symptom: consensus failed with missed-proposal at 2026-10-08T06:14:20.500Z." in text
+
+
+def test_a_builder_timeout_away_from_the_miss_does_not_hide_a_missing_source() -> None:
+    case = Case(
+        id="far",
+        events=[
+            _event(
+                "builder",
+                "error calling getHeader on relay slot: 1",
+                time="2026-10-08T05:00:00Z",
+                client="mev-boost",
+                failure_class="relay-timeout",
+                severity="warning",
+            ),
+            _event(
+                "consensus",
+                "request to execution client timed out slot: 10274310",
+                time="2026-10-08T06:13:58Z",
+                client="lighthouse",
+                failure_class="engine-timeout",
+                severity="warning",
+            ),
+            _event(
+                "validator",
+                "Missed block proposal slot: 10274311",
+                time="2026-10-08T06:14:20Z",
+                client="lighthouse",
+                failure_class="missed-proposal",
+                severity="warning",
+            ),
+        ],
+    )
+    text, cited = explain(case)
+    assert not cited
+    assert "missing execution" in text
+    assert "trigger:" not in text
+
+
+def test_the_sample_proposal_names_the_builder_path(home: Path) -> None:
+    root = Path(__file__).parents[1] / "examples"
+    code, stdout, stderr = run(
+        "why",
+        "--case",
+        "proposal",
+        "--consensus",
+        str(root / "beacon.log"),
+        "--validator",
+        str(root / "validator.log"),
+        "--builder",
+        str(root / "mev-boost.log"),
+    )
+    assert code == 0, stderr
+    trigger = next(line for line in stdout.splitlines() if line.startswith("trigger:"))
+    assert trigger == "trigger: builder failed with relay-timeout at 2026-10-08T06:13:59Z."
+    assert "symptom: validator failed with missed-proposal at 2026-10-08T06:14:20.100Z." in stdout
+    assert "symptom: consensus failed with missed-proposal at 2026-10-08T06:14:20.500Z." in stdout
+    assert not any(line.startswith("trigger:") and "missed-" in line for line in stdout.splitlines())

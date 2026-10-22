@@ -187,6 +187,7 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Classify a local case from the rule catalog, read the timeline, and state one trigger. "
             "Contributors are conditions that made it worse. Symptoms are the later misses and restarts. "
+            "A relay or builder timeout that precedes a missed proposal is the trigger, and the miss stays a symptom. "
             "A doppelganger or a slashable duty is named critical before the trigger. "
             "Pass a case id, or the same files as ingest. "
             "--metrics reads a Prometheus snapshot or range file and cites a metric that crosses a threshold in the same window as the trigger. "

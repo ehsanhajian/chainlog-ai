@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import re
+from datetime import datetime, timedelta, timezone
 
 from chainlog_ai.case import Case, Event
 from chainlog_ai.metrics import metric_phrase
@@ -36,6 +37,11 @@ _USUAL = {
     "builder-timeout": frozenset({"builder", "consensus"}),
 }
 _SOURCE_NAMES = ("execution", "consensus", "validator", "builder", "cluster")
+# A proposal is built in the previous slot. Lines that did not print a slot
+# still count when they fall inside two slots before the miss.
+_BUILDER_PATH = {"relay-timeout", "builder-timeout"}
+_PROPOSAL_NEAR = timedelta(seconds=24)
+_SLOT_FIELD = re.compile(r"slot=(\d+)")
 _Row = tuple[int, Event, str]
 
 
@@ -53,7 +59,9 @@ def explain(
     doppelganger or a slashable duty is named critical before that trigger.
     Conditions such as disk pressure before that failure are contributors. A
     miss, a restart, or a probe failure is a symptom, including when it is the
-    first line in the case. A thin case names the missing source or the slot
+    first line in the case. A relay or builder timeout that precedes a missed
+    proposal, on that slot or the slot before, is the trigger, and the miss
+    stays a symptom. A thin case names the missing source or the slot
     the window does not cover, prints the timeline, and does not state a cause.
     ``color`` and ``width`` match the terminal timeline.
     """
@@ -61,7 +69,8 @@ def explain(
     rows = timeline_rows(case, color=color, width=width, since=since, until=until)
     failures = [(index, event, text) for index, (event, text) in enumerate(rows) if event.failure_class]
     slashing = sorted((item for item in failures if _is_slashing(item)), key=_time_key)
-    trigger = _trigger(failures)
+    present = _present_sources(case)
+    trigger = _trigger(failures, present)
     gaps = _gaps(case, failures, since=since, until=until)
     if gaps or (trigger is None and not slashing):
         return _not_enough(case, gaps, color=color, width=width, since=since, until=until), False
@@ -118,9 +127,12 @@ def _gaps(case: Case, failures: list[_Row], *, since: str | None, until: str | N
 
     gaps: list[str] = []
     present = _present_sources(case)
+    proposal = _proposal_builder(failures)
+    trigger = _trigger(failures, present)
     needed: set[str] = set()
-    for _index, event, _text in failures:
-        needed.update(_USUAL.get(event.failure_class or "", ()))
+    if not (proposal is not None and trigger is not None and trigger[1] is proposal[1]):
+        for _index, event, _text in failures:
+            needed.update(_USUAL.get(event.failure_class or "", ()))
     for name in _SOURCE_NAMES:
         if name in needed and name not in present:
             gaps.append(f"missing {name}")
@@ -129,7 +141,7 @@ def _gaps(case: Case, failures: list[_Row], *, since: str | None, until: str | N
         gaps.append(f"window does not cover slot {slot}")
     if not failures and not gaps:
         gaps.append("missing a classified failure")
-    elif failures and _trigger(failures) is None and not any(_is_slashing(item) for item in failures) and not gaps:
+    elif failures and trigger is None and not any(_is_slashing(item) for item in failures) and not gaps:
         gaps.append("missing a class that explains the failure")
     return gaps
 
@@ -144,7 +156,8 @@ def _present_sources(case: Case) -> set[str]:
     return present
 
 
-def _trigger(failures: list[_Row]) -> _Row | None:
+def _trigger(failures: list[_Row], present: set[str] | None = None) -> _Row | None:
+    proposal = _proposal_builder(failures)
     explaining = [
         item
         for item in failures
@@ -153,12 +166,67 @@ def _trigger(failures: list[_Row]) -> _Row | None:
         and not _is_condition(item)
         and not _is_slashing(item)
     ]
+    if proposal is not None and present is not None:
+        explaining = [item for item in explaining if _sources_ready(item, present)]
+        if all(item[1] is not proposal[1] for item in explaining):
+            explaining.append(proposal)
     if explaining:
         return min(explaining, key=_time_key)
+    if proposal is not None:
+        return proposal
     conditions = [item for item in failures if _is_condition(item)]
     if conditions:
         return min(conditions, key=_time_key)
     return None
+
+
+def _proposal_builder(failures: list[_Row]) -> _Row | None:
+    """Earliest relay or builder timeout that precedes a missed proposal."""
+
+    misses = [item for item in failures if item[1].failure_class == "missed-proposal"]
+    if not misses:
+        return None
+    matched = [
+        item
+        for item in failures
+        if item[1].failure_class in _BUILDER_PATH
+        and any(_precedes(item, miss) and _nearby(item, miss) for miss in misses)
+    ]
+    if not matched:
+        return None
+    return min(matched, key=_time_key)
+
+
+def _precedes(builder: _Row, miss: _Row) -> bool:
+    left = _stamp(builder[1])
+    right = _stamp(miss[1])
+    if left is None or right is None:
+        return False
+    return left < right
+
+
+def _nearby(builder: _Row, miss: _Row) -> bool:
+    left = _row_slot(builder)
+    right = _row_slot(miss)
+    if left is not None and right is not None:
+        return right - 1 <= left <= right
+    started = _stamp(builder[1])
+    ended = _stamp(miss[1])
+    if started is None or ended is None:
+        return False
+    return timedelta(0) <= ended - started <= _PROPOSAL_NEAR
+
+
+def _row_slot(item: _Row) -> int | None:
+    found = _SLOT_FIELD.search(item[2])
+    if found is not None:
+        return int(found.group(1))
+    return item[1].slot
+
+
+def _sources_ready(item: _Row, present: set[str]) -> bool:
+    needed = _USUAL.get(item[1].failure_class or "", ())
+    return all(name in present for name in needed)
 
 
 def _is_slashing(item: _Row) -> bool:
