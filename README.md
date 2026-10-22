@@ -83,6 +83,7 @@ chainlog-ai classify --case kube-rules
 chainlog-ai ingest --case alerted --alert examples/alert.json --execution examples/geth.log
 chainlog-ai timeline --case alerted
 chainlog-ai why --case metrics --execution examples/geth.log --consensus examples/beacon.log --metrics examples/metrics.json
+chainlog-ai why --case proposal --consensus examples/beacon.log --validator examples/validator.log --builder examples/mev-boost.log
 chainlog-ai ingest --case 20261008T061200Z --execution examples/geth.log
 chainlog-ai why --case 20261008T061200Z
 chainlog-ai ask --case 20261008T061200Z "why did it fail"
@@ -98,7 +99,7 @@ A cause cites timeline rows: time, source, and the redacted line. The report sep
 
 - **Trigger** — the earliest cited class that explains what followed.
 - **Contributors** — cited conditions that made it worse, such as disk pressure before a database error.
-- **Symptoms** — later misses, restarts, or probe failures that the trigger explains.
+- **Symptoms** — later misses, restarts, or probe failures that the trigger explains. A missed proposal stays here. When a relay or builder timeout precedes it, on that slot or the slot before, that builder line is the trigger.
 
 A symptom is never printed as the trigger. A class is applied only when a catalog rule matches, and every rule has a source. An unmatched line stays unclassified. When the lines do not support a cause, `why` says so and names what is missing.
 
