@@ -22,6 +22,7 @@ _SOURCE_ORDER = {
     "validator": 4,
     "builder": 5,
     "alert": 6,
+    "metric": 7,
 }
 _CLUSTER = {"kubernetes", "kubernetes-previous"}
 _CLIENTS = {"execution", "consensus", "validator", "builder"}
@@ -101,7 +102,8 @@ def render_timeline(
                 notice = _engine_pair_line(row, partner)
                 lines.append(paint(notice, SOURCE_COLOR["execution"]) if color else notice)
         lines.append(_row(row, color=color, width=width))
-        previous = row.event
+        if _is_cluster(row.event) or _is_client_clock(row.event):
+            previous = row.event
     return "\n".join(lines)
 
 

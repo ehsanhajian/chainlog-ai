@@ -82,6 +82,7 @@ chainlog-ai ingest --case kube-rules --kube examples/events.json
 chainlog-ai classify --case kube-rules
 chainlog-ai ingest --case alerted --alert examples/alert.json --execution examples/geth.log
 chainlog-ai timeline --case alerted
+chainlog-ai why --case metrics --execution examples/geth.log --consensus examples/beacon.log --metrics examples/metrics.json
 chainlog-ai ingest --case 20261008T061200Z --execution examples/geth.log
 chainlog-ai why --case 20261008T061200Z
 chainlog-ai ask --case 20261008T061200Z "why did it fail"
@@ -117,9 +118,9 @@ Slot, epoch, and block are taken from the line that prints them. A slot filled i
 
 ## Around the failure
 
-`ingest --alert` opens the case from an Alertmanager webhook body or a saved ValidatorPulse or Prometheus alert. The timeline shows the alert name and the firing time. The window defaults to one hour before the alert and fifteen minutes after. The alert is a source on the timeline and is not the root cause. A metric snapshot for that window can support a contributor: disk, memory, restarts, peer count, head lag, attestation effectiveness.
+`ingest --alert` opens the case from an Alertmanager webhook body or a saved ValidatorPulse or Prometheus alert. The timeline shows the alert name and the firing time. The window defaults to one hour before the alert and fifteen minutes after. The alert is a source on the timeline and is not the root cause. `why --metrics` reads the Prometheus snapshot or range file the operator exports. Disk usage, disk latency, memory, restart count, peer count, execution head lag, consensus head lag, and attestation effectiveness become contributors when they cross a threshold in the same window as the trigger. The metric is not the root cause. chainlog-ai does not scrape a cluster.
 
-chainlog-ai reads the snapshot the operator exports. ValidatorPulse remains the monitor that raises the alert. ChainDiff remains the tool that decides whether a client upgrade is safe. chainlog-ai records the version change and stops there.
+ValidatorPulse remains the monitor that raises the alert. ChainDiff remains the tool that decides whether a client upgrade is safe. chainlog-ai records the version change and stops there.
 
 A pattern exported for another host contains class ids, client, version, and the order of classes. It contains no log lines and no host names.
 

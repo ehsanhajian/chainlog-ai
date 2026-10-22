@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from chainlog_ai.case import Case, Event
+from chainlog_ai.metrics import metric_phrase
 from chainlog_ai.style import CAUSE_COLOR, SEVERITY_COLOR, WINDOW_COLOR, paint, paint_redacted, paint_severity, paint_source
 from chainlog_ai.timeline import covered_slots, first_bad_slot, render_timeline, timeline_rows
 
@@ -16,6 +17,7 @@ _SOURCE_ORDER = {
     "validator": 4,
     "builder": 5,
     "alert": 6,
+    "metric": 7,
 }
 _CLUSTER = {"kubernetes", "kubernetes-previous"}
 _NAMED = {"execution", "consensus", "validator", "builder"}
@@ -64,6 +66,12 @@ def explain(
     if gaps or (trigger is None and not slashing):
         return _not_enough(case, gaps, color=color, width=width, since=since, until=until), False
     contributors = [item for item in failures if trigger is not None and _is_condition(item) and _made_worse(item, trigger)]
+    if trigger is not None:
+        contributors.extend(
+            item
+            for item in failures
+            if item[1].source == "metric" and _metric_in_span(item, rows, since=since, until=until)
+        )
     symptoms = [item for item in failures if _is_symptom(item)]
     cited = [*slashing, *([trigger] if trigger is not None else []), *contributors, *symptoms]
     lines = [f"case {case.id}"]
@@ -140,7 +148,10 @@ def _trigger(failures: list[_Row]) -> _Row | None:
     explaining = [
         item
         for item in failures
-        if not _is_symptom(item) and not _is_condition(item) and not _is_slashing(item)
+        if item[1].source != "metric"
+        and not _is_symptom(item)
+        and not _is_condition(item)
+        and not _is_slashing(item)
     ]
     if explaining:
         return min(explaining, key=_time_key)
@@ -176,8 +187,26 @@ def _made_worse(condition: _Row, trigger: _Row) -> bool:
     return left <= right
 
 
+def _metric_in_span(item: _Row, rows: list[tuple[Event, str]], *, since: str | None, until: str | None) -> bool:
+    """A metric counts when its sample sits in the window that holds the trigger."""
+
+    if since is not None or until is not None:
+        return True
+    stamps = [
+        stamp
+        for event, _text in rows
+        if event.source != "metric" and (stamp := _stamp(event)) is not None
+    ]
+    if not stamps:
+        return True
+    stamp = _stamp(item[1])
+    if stamp is None:
+        return False
+    return min(stamps) <= stamp <= max(stamps)
+
+
 def _headed(role: str, item: _Row, *, color: bool) -> str:
-    sentence = _sentence(item[1], color=color)
+    sentence = _metric_sentence(item[1], color=color) if item[1].source == "metric" else _sentence(item[1], color=color)
     if not color:
         return f"{role}: {sentence}"
     label = SEVERITY_COLOR["critical"] if role == "critical" else CAUSE_COLOR
@@ -191,6 +220,13 @@ def _window(items: list[_Row]) -> str:
         return "window: unknown"
     known.sort(key=lambda item: item[0])
     return f"window: {known[0][1]} .. {known[-1][1]}"
+
+
+def _metric_sentence(event: Event, *, color: bool) -> str:
+    phrase = metric_phrase(event.failure_class or "")
+    when = f" at {event.time}" if event.time else ""
+    source = paint_source("metric", "metric") if color else "metric"
+    return f"{source} {phrase}{when}."
 
 
 def _sentence(event: Event, *, color: bool) -> str:

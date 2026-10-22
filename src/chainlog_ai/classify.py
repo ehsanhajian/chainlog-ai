@@ -109,6 +109,12 @@ def label(case: Case, rules: tuple[Rule, ...] | list[Rule]) -> dict[str, int]:
     counts: dict[str, int] = {}
     unclassified = 0
     for event in case.events:
+        if event.source == "metric":
+            if event.failure_class:
+                counts[event.failure_class] = counts.get(event.failure_class, 0) + 1
+            else:
+                unclassified += 1
+            continue
         matched = next((rule for rule in rules if rule.matches(event)), None)
         if matched is None:
             event.failure_class = None
