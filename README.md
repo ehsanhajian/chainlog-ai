@@ -140,7 +140,7 @@ Redaction removes private keys, mnemonics, keystore passwords, JWT secrets, and 
 pip install chainlog-ai
 ```
 
-The package is published from a GitHub release. Python 3.11 or newer. The command is `chainlog-ai`.
+The package is published from a GitHub release to [PyPI](https://pypi.org/project/chainlog-ai/). Python 3.11 or newer. The command is `chainlog-ai`.
 
 ```bash
 chainlog-ai --version
