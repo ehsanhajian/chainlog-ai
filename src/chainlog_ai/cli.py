@@ -118,7 +118,9 @@ def build_parser() -> argparse.ArgumentParser:
             "into a case under ~/.chainlog-ai, or CHAINLOG_AI_HOME when that is set. "
             "--alert puts the alert name and firing time on the timeline. "
             "The window defaults to one hour before the alert and fifteen minutes after. "
-            "The alert is not the root cause."
+            "The alert is not the root cause. "
+            "--metrics reads a Prometheus snapshot or range file. "
+            "A metric that crosses a threshold in that window is a contributor, not the root cause."
         ),
     )
     ingest_parser.set_defaults(func=_cmd_ingest)
@@ -135,6 +137,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--alert",
         metavar="FILE",
         help="ValidatorPulse or Prometheus alert JSON. Alertmanager webhook or one saved alert.",
+    )
+    ingest_parser.add_argument(
+        "--metrics",
+        metavar="FILE",
+        help="Prometheus snapshot or range file. A series that crosses a threshold in the window is a contributor.",
     )
     _add_case_inputs(ingest_parser)
 
@@ -160,7 +167,7 @@ def build_parser() -> argparse.ArgumentParser:
             "Print a local case in time order across every source. "
             "--since and --until narrow the window. "
             "Rows that share a timestamp stay in source order: "
-            "cluster, execution, consensus, validator, builder, alert. "
+            "cluster, execution, consensus, validator, builder, alert, metric. "
             "A row shows the slot, epoch, and block printed on the line. "
             "A missing slot is filled from a consensus line in the same few seconds. "
             "The timeline names the last healthy slot and the first bad slot. "
@@ -182,8 +189,9 @@ def build_parser() -> argparse.ArgumentParser:
             "Contributors are conditions that made it worse. Symptoms are the later misses and restarts. "
             "A doppelganger or a slashable duty is named critical before the trigger. "
             "Pass a case id, or the same files as ingest. "
+            "--metrics reads a Prometheus snapshot or range file and cites a metric that crosses a threshold in the same window as the trigger. "
             "When the evidence is not enough, why names the missing source or the slot the window does not cover, and prints the timeline. "
-            "why does not call a model."
+            "why does not call a model and does not scrape a cluster."
         ),
     )
     why_parser.add_argument(
@@ -192,6 +200,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     why_parser.add_argument("--since", help="Include events at or after this UTC time")
     why_parser.add_argument("--until", help="Include events at or before this UTC time")
+    why_parser.add_argument(
+        "--metrics",
+        metavar="FILE",
+        help="Prometheus snapshot or range file. A series that crosses a threshold in the window is a contributor.",
+    )
     _add_case_inputs(why_parser)
     why_parser.set_defaults(func=_cmd_why)
 
@@ -328,7 +341,7 @@ def main(argv: list[str] | None = None) -> int:
 
 def _cmd_ingest(args: argparse.Namespace) -> int:
     inputs = _inputs(args)
-    if not inputs and not args.alert:
+    if not inputs and not args.alert and not args.metrics:
         print("ingest needs an input file", file=sys.stderr)
         return 3
     announced = False
@@ -352,6 +365,7 @@ def _cmd_ingest(args: argparse.Namespace) -> int:
             on_ready=on_ready,
             on_events=on_events if args.follow else None,
             alert=args.alert,
+            metrics=args.metrics,
         )
     except (InputError, CaseError) as exc:
         print(exc, file=sys.stderr)
@@ -414,11 +428,12 @@ def _inputs(args: argparse.Namespace) -> list[tuple[str, ...]]:
 
 def _cmd_why(args: argparse.Namespace) -> int:
     inputs = _inputs(args)
-    if args.case is None and not inputs:
+    metrics = getattr(args, "metrics", None)
+    if args.case is None and not inputs and not metrics:
         print("why needs a case id or an input file", file=sys.stderr)
         return 3
     try:
-        case_id = ingest(inputs, case_id=args.case) if inputs else args.case
+        case_id = ingest(inputs, case_id=args.case, metrics=metrics) if inputs or metrics else args.case
         color, width = _terminal_view()
         classify_case(case_id)
         case = load_case(case_id)

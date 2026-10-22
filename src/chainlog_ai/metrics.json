@@ -1,0 +1,93 @@
+[
+  {
+    "id": "node-filesystem-almost-out-of-space",
+    "class": "disk-usage",
+    "phrase": "disk usage fell below 5% available",
+    "compare": "available-percent-below",
+    "threshold": 5,
+    "metrics": ["node_filesystem_avail_bytes", "node_filesystem_size_bytes"],
+    "severity": "warning",
+    "serving": true,
+    "source": "https://github.com/prometheus/node_exporter/blob/master/docs/node-mixin/config.libsonnet"
+  },
+  {
+    "id": "node-disk-io-saturation",
+    "class": "disk-latency",
+    "phrase": "disk io queue rose above 10",
+    "compare": "rate-above",
+    "threshold": 10,
+    "metrics": ["node_disk_io_time_weighted_seconds_total"],
+    "severity": "warning",
+    "serving": true,
+    "source": "https://github.com/prometheus/node_exporter/blob/master/docs/node-mixin/config.libsonnet"
+  },
+  {
+    "id": "node-memory-high-utilization",
+    "class": "memory",
+    "phrase": "memory utilization rose above 90%",
+    "compare": "utilization-percent-above",
+    "threshold": 90,
+    "metrics": ["node_memory_MemAvailable_bytes", "node_memory_MemTotal_bytes"],
+    "severity": "warning",
+    "serving": true,
+    "source": "https://github.com/prometheus/node_exporter/blob/master/docs/node-mixin/config.libsonnet"
+  },
+  {
+    "id": "kube-container-restarts",
+    "class": "restart-count",
+    "phrase": "restart count rose by at least 1",
+    "compare": "increase-at-least",
+    "threshold": 1,
+    "metrics": ["kube_pod_container_status_restarts_total"],
+    "severity": "warning",
+    "serving": true,
+    "source": "https://github.com/kubernetes/kube-state-metrics/blob/main/docs/metrics/workload/pod-metrics.md"
+  },
+  {
+    "id": "connected-peers",
+    "class": "peer-count",
+    "phrase": "peer count fell below 1",
+    "compare": "below",
+    "threshold": 1,
+    "metrics": ["p2p_peers", "libp2p_peers", "p2p_peer_count"],
+    "severity": "warning",
+    "serving": true,
+    "source": "https://docs.coregeth.com/operate/monitoring/"
+  },
+  {
+    "id": "execution-head-stale",
+    "class": "execution-head-lag",
+    "phrase": "execution head stopped advancing for more than 12s",
+    "compare": "stale-seconds",
+    "threshold": 12,
+    "metrics": ["chain_head_block"],
+    "severity": "warning",
+    "serving": true,
+    "source": "https://github.com/ethereum/consensus-specs/blob/master/specs/phase0/beacon-chain.md"
+  },
+  {
+    "id": "consensus-head-stale",
+    "class": "consensus-head-lag",
+    "phrase": "consensus head stopped advancing for more than 12s",
+    "compare": "stale-seconds",
+    "threshold": 12,
+    "metrics": ["beacon_head_slot"],
+    "severity": "warning",
+    "serving": true,
+    "source": "https://github.com/ethereum/consensus-specs/blob/master/specs/phase0/beacon-chain.md"
+  },
+  {
+    "id": "attestation-head-effectiveness",
+    "class": "attestation-effectiveness",
+    "phrase": "attestation effectiveness fell below 1",
+    "compare": "success-ratio-below",
+    "threshold": 1,
+    "metrics": [
+      "validator_monitor_attestation_simulator_head_attester_hit_total",
+      "validator_monitor_attestation_simulator_head_attester_miss_total"
+    ],
+    "severity": "warning",
+    "serving": true,
+    "source": "https://github.com/sigp/lighthouse/blob/stable/book/src/validator_monitoring.md"
+  }
+]

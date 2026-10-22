@@ -18,6 +18,7 @@ SOURCE_COLOR = {
     "validator": "\033[96m",
     "builder": "\033[94m",
     "alert": "\033[93m",
+    "metric": "\033[92m",
 }
 _REDACTED = re.compile(re.escape("[redacted]"))
 

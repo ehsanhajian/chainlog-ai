@@ -1,0 +1,80 @@
+{
+  "status": "success",
+  "data": {
+    "resultType": "matrix",
+    "result": [
+      {
+        "metric": {
+          "__name__": "node_filesystem_avail_bytes",
+          "device": "sda",
+          "fstype": "ext4",
+          "mountpoint": "/data"
+        },
+        "values": [[1791439980, "4000000000"], [1791440020, "4000000000"]]
+      },
+      {
+        "metric": {
+          "__name__": "node_filesystem_size_bytes",
+          "device": "sda",
+          "fstype": "ext4",
+          "mountpoint": "/data"
+        },
+        "values": [[1791439980, "100000000000"], [1791440020, "100000000000"]]
+      },
+      {
+        "metric": {
+          "__name__": "node_filesystem_avail_bytes",
+          "device": "sdb",
+          "fstype": "ext4",
+          "mountpoint": "/var"
+        },
+        "values": [[1791439980, "80000000000"], [1791440020, "80000000000"]]
+      },
+      {
+        "metric": {
+          "__name__": "node_filesystem_size_bytes",
+          "device": "sdb",
+          "fstype": "ext4",
+          "mountpoint": "/var"
+        },
+        "values": [[1791439980, "100000000000"], [1791440020, "100000000000"]]
+      },
+      {
+        "metric": {"__name__": "node_disk_io_time_weighted_seconds_total", "device": "sda"},
+        "values": [[1791439980, "0"], [1791440020, "500"]]
+      },
+      {
+        "metric": {"__name__": "node_memory_MemAvailable_bytes"},
+        "values": [[1791439980, "500000000"], [1791440020, "500000000"]]
+      },
+      {
+        "metric": {"__name__": "node_memory_MemTotal_bytes"},
+        "values": [[1791439980, "8000000000"], [1791440020, "8000000000"]]
+      },
+      {
+        "metric": {"__name__": "kube_pod_container_status_restarts_total"},
+        "values": [[1791439980, "3"], [1791440020, "4"]]
+      },
+      {
+        "metric": {"__name__": "p2p_peers"},
+        "values": [[1791439980, "0"], [1791440020, "0"]]
+      },
+      {
+        "metric": {"__name__": "chain_head_block"},
+        "values": [[1791439980, "21234560"], [1791440020, "21234560"]]
+      },
+      {
+        "metric": {"__name__": "beacon_head_slot"},
+        "values": [[1791439980, "10274304"], [1791440020, "10274304"]]
+      },
+      {
+        "metric": {"__name__": "validator_monitor_attestation_simulator_head_attester_hit_total"},
+        "values": [[1791439980, "10"], [1791440020, "10"]]
+      },
+      {
+        "metric": {"__name__": "validator_monitor_attestation_simulator_head_attester_miss_total"},
+        "values": [[1791439980, "0"], [1791440020, "1"]]
+      }
+    ]
+  }
+}
