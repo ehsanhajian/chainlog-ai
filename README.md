@@ -80,6 +80,8 @@ chainlog-ai ingest --case consensus-rules \
 chainlog-ai classify --case consensus-rules
 chainlog-ai ingest --case kube-rules --kube examples/events.json
 chainlog-ai classify --case kube-rules
+chainlog-ai ingest --case alerted --alert examples/alert.json --execution examples/geth.log
+chainlog-ai timeline --case alerted
 chainlog-ai ingest --case 20261008T061200Z --execution examples/geth.log
 chainlog-ai why --case 20261008T061200Z
 chainlog-ai ask --case 20261008T061200Z "why did it fail"
@@ -115,7 +117,7 @@ Slot, epoch, and block are taken from the line that prints them. A slot filled i
 
 ## Around the failure
 
-An alert can open the case. A ValidatorPulse or Prometheus alert sets the window: one hour before it fired, and fifteen minutes after. A metric snapshot for that window can support a contributor: disk, memory, restarts, peer count, head lag, attestation effectiveness.
+`ingest --alert` opens the case from an Alertmanager webhook body or a saved ValidatorPulse or Prometheus alert. The timeline shows the alert name and the firing time. The window defaults to one hour before the alert and fifteen minutes after. The alert is a source on the timeline and is not the root cause. A metric snapshot for that window can support a contributor: disk, memory, restarts, peer count, head lag, attestation effectiveness.
 
 chainlog-ai reads the snapshot the operator exports. ValidatorPulse remains the monitor that raises the alert. ChainDiff remains the tool that decides whether a client upgrade is safe. chainlog-ai records the version change and stops there.
 

@@ -1,0 +1,16 @@
+{
+  "receiver": "chainlog",
+  "status": "firing",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "ValidatorMissedAttestation"
+      },
+      "annotations": {
+        "summary": "Validator missed an attestation"
+      },
+      "startsAt": "2026-10-08T06:14:00.010Z"
+    }
+  ]
+}

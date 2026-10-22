@@ -17,6 +17,7 @@ SOURCE_COLOR = {
     "consensus": "\033[35m",
     "validator": "\033[96m",
     "builder": "\033[94m",
+    "alert": "\033[93m",
 }
 _REDACTED = re.compile(re.escape("[redacted]"))
 

@@ -81,16 +81,16 @@ def answer(
     row says the case does not contain that and has no payload.
     """
 
-    plain = timeline_rows(case)
+    plain = timeline_rows(case, since=case.since, until=case.until)
     chosen = _select(plain, question)
     if chosen is None:
-        plain_text, _cited = explain(case)
+        plain_text, _cited = explain(case, since=case.since, until=case.until)
         cited_plain = _cited_rows(plain, plain_text)
         if not cited_plain:
             return _missing(case.id), False, None
         display = plain_text
         if color or width is not None:
-            display = explain(case, color=color, width=width)[0]
+            display = explain(case, color=color, width=width, since=case.since, until=case.until)[0]
         notes = _runbook_lines(cited_plain)
         return _with_runbook(display, cited_plain), True, _payload(question, cited_plain, notes)
     if not chosen:
@@ -143,7 +143,10 @@ def _payload(question: str, rows: list[_Row], notes: list[str]) -> dict[str, obj
 def _display_rows(case: Case, *, color: bool, width: int | None) -> dict[int, str]:
     if not color and width is None:
         return {}
-    return {id(event): text for event, text in timeline_rows(case, color=color, width=width)}
+    return {
+        id(event): text
+        for event, text in timeline_rows(case, color=color, width=width, since=case.since, until=case.until)
+    }
 
 
 def _select(rows: list[_Row], question: str) -> list[_Row] | None:

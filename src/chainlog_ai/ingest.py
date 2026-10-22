@@ -59,6 +59,7 @@ def ingest(
     pause: float = 0.2,
     on_ready: Callable[[str], None] | None = None,
     on_events: Callable[[list[Event]], None] | None = None,
+    alert: str | None = None,
 ) -> str:
     """Read ``inputs`` and write them to a case. Return the case id.
 
@@ -68,7 +69,13 @@ def ingest(
 
     if case_id is not None:
         validate_case_id(case_id)
+    if follow and not inputs:
+        follow = False
     case = open_case(case_id)
+    if alert:
+        from chainlog_ai.alert import read_alert
+
+        read_alert(case, Path(alert))
     if on_ready is not None:
         on_ready(case.id)
     try:
