@@ -2,6 +2,12 @@
 
 chainlog-ai answers one question: **why did my infrastructure fail?**
 
+```bash
+chainlog-ai examples/geth.log examples/beacon.log examples/validator.log examples/mev-boost.log examples/events.json
+```
+
+Pass those files, or a directory of them. The cause is printed, and `report.md` is written next to the case.
+
 It reads the logs an operator already has — execution clients, consensus clients, validators, and Kubernetes — and returns a cause that cites those lines. The case stays on the machine. A model is optional, and it only sees redacted excerpts.
 
 chainlog-ai does not restart a client, edit a manifest, scrape a cluster, or sign with a validator key.
@@ -55,18 +61,6 @@ chainlog-ai ingest \
   --kube examples/pods/ethereum_geth-0_poduid/geth/1.log
 cp examples/follow.log /tmp/follow.log
 chainlog-ai ingest --follow --case follow --execution /tmp/follow.log
-chainlog-ai ingest --case incident \
-  --execution examples/geth.log \
-  --consensus examples/beacon.log \
-  --validator examples/validator.log \
-  --builder examples/mev-boost.log \
-  --kube examples/events.json
-chainlog-ai classify --case incident
-chainlog-ai timeline --case incident
-chainlog-ai report --case incident
-chainlog-ai report --case incident --bundle
-chainlog-ai report --verify ~/.chainlog-ai/cases/incident/bundle
-chainlog-ai timeline --case incident --since 2026-10-08T06:13:40Z --until 2026-10-08T06:14:12Z
 chainlog-ai ingest --case earlier --execution examples/geth.log
 chainlog-ai ingest --case later --execution examples/geth.log
 chainlog-ai patterns --case later
