@@ -1,6 +1,6 @@
 [project]
 name = "chainlog-ai"
-version = "0.2.0"
+version = "0.3.0"
 description = "Explain why blockchain infrastructure failed, from the logs you already have."
 readme = "README.md"
 license = "MIT"
