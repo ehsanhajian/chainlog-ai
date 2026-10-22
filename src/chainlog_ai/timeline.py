@@ -21,6 +21,7 @@ _SOURCE_ORDER = {
     "consensus": 3,
     "validator": 4,
     "builder": 5,
+    "alert": 6,
 }
 _CLUSTER = {"kubernetes", "kubernetes-previous"}
 _CLIENTS = {"execution", "consensus", "validator", "builder"}

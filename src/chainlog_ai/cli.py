@@ -10,7 +10,7 @@ from pathlib import Path
 
 from chainlog_ai import __version__
 from chainlog_ai.ask import REMOTE_NOTICE, RemoteError, answer, case_is_redacted, send_remote
-from chainlog_ai.case import CaseError, CaseNotFoundError, Event, load_case
+from chainlog_ai.case import CaseError, CaseNotFoundError, Event, case_window, load_case
 from chainlog_ai.classify import CatalogError, classify_case
 from chainlog_ai.ingest import SOURCES, InputError, ingest
 from chainlog_ai.patterns import SignatureError, find_patterns, match_signature, write_signature
@@ -113,8 +113,12 @@ def build_parser() -> argparse.ArgumentParser:
         "ingest",
         help="Read logs into a local case",
         description=(
-            "Read plain text, JSON lines, a container log, or a Kubernetes events file "
-            "into a case under ~/.chainlog-ai, or CHAINLOG_AI_HOME when that is set."
+            "Read plain text, JSON lines, a container log, a Kubernetes events file, "
+            "or a ValidatorPulse or Prometheus alert "
+            "into a case under ~/.chainlog-ai, or CHAINLOG_AI_HOME when that is set. "
+            "--alert puts the alert name and firing time on the timeline. "
+            "The window defaults to one hour before the alert and fifteen minutes after. "
+            "The alert is not the root cause."
         ),
     )
     ingest_parser.set_defaults(func=_cmd_ingest)
@@ -126,6 +130,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--follow",
         action="store_true",
         help="Read new lines from the local files until this command is stopped",
+    )
+    ingest_parser.add_argument(
+        "--alert",
+        metavar="FILE",
+        help="ValidatorPulse or Prometheus alert JSON. Alertmanager webhook or one saved alert.",
     )
     _add_case_inputs(ingest_parser)
 
@@ -151,7 +160,7 @@ def build_parser() -> argparse.ArgumentParser:
             "Print a local case in time order across every source. "
             "--since and --until narrow the window. "
             "Rows that share a timestamp stay in source order: "
-            "cluster, execution, consensus, validator, builder. "
+            "cluster, execution, consensus, validator, builder, alert. "
             "A row shows the slot, epoch, and block printed on the line. "
             "A missing slot is filled from a consensus line in the same few seconds. "
             "The timeline names the last healthy slot and the first bad slot. "
@@ -319,7 +328,7 @@ def main(argv: list[str] | None = None) -> int:
 
 def _cmd_ingest(args: argparse.Namespace) -> int:
     inputs = _inputs(args)
-    if not inputs:
+    if not inputs and not args.alert:
         print("ingest needs an input file", file=sys.stderr)
         return 3
     announced = False
@@ -342,6 +351,7 @@ def _cmd_ingest(args: argparse.Namespace) -> int:
             follow=args.follow,
             on_ready=on_ready,
             on_events=on_events if args.follow else None,
+            alert=args.alert,
         )
     except (InputError, CaseError) as exc:
         print(exc, file=sys.stderr)
@@ -373,7 +383,8 @@ def _cmd_timeline(args: argparse.Namespace) -> int:
     try:
         case = load_case(args.case)
         color, width = _terminal_view()
-        text = render_timeline(case, since=args.since, until=args.until, color=color, width=width)
+        since, until = case_window(case, args.since, args.until)
+        text = render_timeline(case, since=since, until=until, color=color, width=width)
     except CaseNotFoundError as exc:
         print(exc, file=sys.stderr)
         return 3
@@ -410,12 +421,14 @@ def _cmd_why(args: argparse.Namespace) -> int:
         case_id = ingest(inputs, case_id=args.case) if inputs else args.case
         color, width = _terminal_view()
         classify_case(case_id)
+        case = load_case(case_id)
+        since, until = case_window(case, getattr(args, "since", None), getattr(args, "until", None))
         text, cited = explain(
-            load_case(case_id),
+            case,
             color=color,
             width=width,
-            since=getattr(args, "since", None),
-            until=getattr(args, "until", None),
+            since=since,
+            until=until,
         )
     except CaseNotFoundError as exc:
         print(exc, file=sys.stderr)

@@ -234,13 +234,20 @@ class Case:
     id: str
     events: list[Event]
     files: dict[str, FileCursor] = field(default_factory=dict)
+    since: str | None = None
+    until: str | None = None
 
     def to_dict(self) -> dict[str, object]:
-        return {
+        payload: dict[str, object] = {
             "id": self.id,
             "events": [event.to_dict() for event in self.events],
             "files": {path: cursor.to_dict() for path, cursor in self.files.items()},
         }
+        if self.since is not None:
+            payload["since"] = self.since
+        if self.until is not None:
+            payload["until"] = self.until
+        return payload
 
     @classmethod
     def from_dict(cls, data: dict[str, object]) -> Case:
@@ -258,7 +265,19 @@ class Case:
             if not isinstance(path, str) or not isinstance(item, dict):
                 raise TypeError("files must be an object")
             files[path] = FileCursor.from_dict(item)
-        return cls(id=str(data["id"]), events=events, files=files)
+        since = data.get("since")
+        until = data.get("until")
+        if since is not None and not isinstance(since, str):
+            raise TypeError("since must be a string")
+        if until is not None and not isinstance(until, str):
+            raise TypeError("until must be a string")
+        return cls(id=str(data["id"]), events=events, files=files, since=since, until=until)
+
+
+def case_window(case: Case, since: str | None, until: str | None) -> tuple[str | None, str | None]:
+    """Use the case window when the command does not pass one."""
+
+    return (case.since if since is None else since, case.until if until is None else until)
 
 
 def case_home() -> Path:
