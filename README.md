@@ -63,6 +63,7 @@ chainlog-ai ingest --case incident \
   --kube examples/events.json
 chainlog-ai classify --case incident
 chainlog-ai timeline --case incident
+chainlog-ai report --case incident
 chainlog-ai timeline --case incident --since 2026-10-08T06:13:40Z --until 2026-10-08T06:14:12Z
 chainlog-ai ingest --case earlier --execution examples/geth.log
 chainlog-ai ingest --case later --execution examples/geth.log
@@ -135,7 +136,7 @@ Redaction removes private keys, mnemonics, keystore passwords, JWT secrets, and 
 
 ## Report
 
-`report` writes markdown and JSON: cause, trigger, contributors, symptoms, the last healthy slot, the first bad slot, citations, and the pattern note. `--no-paths` drops local file paths. `--bundle` writes the redacted citations, the signature, and a hash. `--verify` checks that hash later.
+`report --case` writes `report.md` and `report.json` next to the case. The markdown is short enough to paste into a chat. Both files include the cause, the last healthy slot, the first bad slot, the citations, and the pattern note. A doppelganger or a slashable duty is the first section when the cause includes one. `--no-paths` drops local file paths.
 
 ## Install
 
