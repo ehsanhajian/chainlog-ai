@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
 
 from chainlog_ai.case import Case, Event, case_file, load_case
-from chainlog_ai.patterns import find_patterns
+from chainlog_ai.patterns import find_patterns, write_signature
 from chainlog_ai.timeline import render_timeline, timeline_rows
 from chainlog_ai.why import explain
 
@@ -30,12 +31,13 @@ class _Cited:
     event: Event
 
 
-def write_report(case_id: str, *, paths: bool = True) -> tuple[Path, Path, bool]:
+def write_report(case_id: str, *, paths: bool = True, bundle: bool = False) -> tuple[Path, Path, bool]:
     """Write ``report.md`` and ``report.json`` next to the case.
 
     Return the two paths and whether the cause was stated. ``paths`` keeps
-    local file paths in the report. The slashing block is first when the
-    cause includes one.
+    local file paths in the report. ``bundle`` also writes ``bundle/`` with
+    the redacted citations, the signature, and a hash of that content. The
+    slashing block is first when the cause includes one.
     """
 
     note = _pattern_note(case_id, find_patterns(case_id))
@@ -51,9 +53,55 @@ def write_report(case_id: str, *, paths: bool = True) -> tuple[Path, Path, bool]
     try:
         markdown_path.write_text(markdown, encoding="utf-8")
         json_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        if bundle:
+            _write_bundle(directory, payload, case.id)
     except OSError as exc:
         raise ReportError(f"cannot write report {directory}") from exc
     return markdown_path, json_path, stated
+
+
+def verify_bundle(path: Path) -> bool:
+    """Return whether ``path`` still matches the hash written with the bundle."""
+
+    directory = path.expanduser()
+    citations = directory / "citations.json"
+    signature = directory / "signature.json"
+    hashed = directory / "hash.txt"
+    if not citations.is_file() or not signature.is_file() or not hashed.is_file():
+        raise ReportError(f"cannot read bundle {path}")
+    try:
+        digest = _digest(citations.read_bytes(), signature.read_bytes())
+        stored = hashed.read_text(encoding="utf-8").strip()
+    except OSError as exc:
+        raise ReportError(f"cannot read bundle {path}: {exc.strerror}") from exc
+    return stored == digest
+
+
+def _write_bundle(directory: Path, payload: dict[str, object], case_id: str) -> None:
+    bundle = directory / "bundle"
+    bundle.mkdir(exist_ok=True)
+    raw = payload.get("citations")
+    citations = raw if isinstance(raw, list) else []
+    redacted = []
+    for item in citations:
+        if not isinstance(item, dict):
+            continue
+        redacted.append({key: value for key, value in item.items() if key != "path"})
+    citations_path = bundle / "citations.json"
+    signature_path = bundle / "signature.json"
+    citations_path.write_text(json.dumps({"citations": redacted}, indent=2) + "\n", encoding="utf-8")
+    write_signature(case_id, signature_path)
+    digest = _digest(citations_path.read_bytes(), signature_path.read_bytes())
+    (bundle / "hash.txt").write_text(digest + "\n", encoding="utf-8")
+
+
+def _digest(citations: bytes, signature: bytes) -> str:
+    digest = hashlib.sha256()
+    digest.update(b"citations.json\n")
+    digest.update(citations)
+    digest.update(b"signature.json\n")
+    digest.update(signature)
+    return digest.hexdigest()
 
 
 def _read_cause(
