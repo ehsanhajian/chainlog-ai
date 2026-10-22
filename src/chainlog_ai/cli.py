@@ -14,6 +14,7 @@ from chainlog_ai.case import CaseError, CaseNotFoundError, Event, case_window, l
 from chainlog_ai.classify import CatalogError, classify_case
 from chainlog_ai.ingest import SOURCES, InputError, ingest
 from chainlog_ai.patterns import SignatureError, find_patterns, match_signature, write_signature
+from chainlog_ai.recognize import RecognizeError, Recognized, recognize
 from chainlog_ai.report import ReportError, verify_bundle, write_report
 from chainlog_ai.style import paint_redacted
 from chainlog_ai.timeline import TimelineError, render_timeline
@@ -102,10 +103,26 @@ class _KubePrevious(argparse.Action):
         meta["previous"] = True
 
 
+_COMMANDS = {"ingest", "classify", "timeline", "why", "patterns", "ask", "report"}
+_BARE_EXAMPLE = (
+    "chainlog-ai examples/geth.log examples/beacon.log "
+    "examples/validator.log examples/mev-boost.log examples/events.json"
+)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="chainlog-ai",
-        description="Explain why blockchain infrastructure failed, from the logs you already have.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=(
+            "Pass the log files and read the cause.\n"
+            "\n"
+            f"    {_BARE_EXAMPLE}\n"
+            "\n"
+            "A directory is read the same way. A skipped file in a directory is named. "
+            "A file that cannot be recognized stops the command. "
+            "The commands below inspect a case that is already on this machine."
+        ),
     )
     parser.add_argument("--version", action="version", version=f"chainlog-ai {__version__}")
     commands = parser.add_subparsers(dest="command")
@@ -358,17 +375,108 @@ def _add_source(parser: argparse.ArgumentParser, flag: str, source: str, help_te
 
 
 def main(argv: list[str] | None = None) -> int:
+    args = list(sys.argv[1:] if argv is None else argv)
+    if args and not args[0].startswith("-") and args[0] not in _COMMANDS:
+        return _cmd_bare(args)
     parser = build_parser()
     try:
-        args = parser.parse_args(argv)
+        parsed = parser.parse_args(args)
     except SystemExit as exc:
         if exc.code in (None, 0):
             return 0
         return 3
-    if not args.command:
+    if not parsed.command:
         parser.print_help()
         return 0
-    return args.func(args)
+    return parsed.func(parsed)
+
+
+def _cmd_bare(argv: list[str]) -> int:
+    if any(arg.startswith("-") for arg in argv):
+        print("pass log files or a directory", file=sys.stderr)
+        return 3
+    try:
+        recognized, skipped = _collect(argv)
+    except RecognizeError as exc:
+        print(exc, file=sys.stderr)
+        return 3
+    for name in skipped:
+        print(f"skipped {name}", file=sys.stderr)
+    if not recognized:
+        where = argv[0] if len(argv) == 1 else "these paths"
+        print(f"no recognized file in {where}", file=sys.stderr)
+        return 3
+    try:
+        case_id = _ingest_recognized(recognized)
+        classify_case(case_id)
+        case = load_case(case_id)
+        since, until = case_window(case, None, None)
+        color, width = _terminal_view()
+        text, _cited = explain(case, color=color, width=width, since=since, until=until)
+        _markdown_path, _json_path, stated = write_report(case_id)
+    except (InputError, CaseError, CatalogError, TimelineError, SignatureError, ReportError) as exc:
+        print(exc, file=sys.stderr)
+        return 3
+    print(_cause_text(text, case_id), end="")
+    return 0 if stated else 1
+
+
+def _collect(argv: list[str]) -> tuple[list[Recognized], list[str]]:
+    recognized: list[Recognized] = []
+    skipped: list[str] = []
+    for raw in argv:
+        path = Path(raw).expanduser()
+        if path.is_dir():
+            files = sorted(child for child in path.iterdir() if child.is_file())
+            if not files:
+                raise RecognizeError(f"directory is empty: {raw}", kind="read")
+            for child in files:
+                try:
+                    recognized.append(recognize(child))
+                except RecognizeError as exc:
+                    if exc.kind != "unknown":
+                        raise
+                    skipped.append(child.name)
+            continue
+        recognized.append(recognize(Path(raw)))
+    return recognized, skipped
+
+
+def _ingest_recognized(items: list[Recognized]) -> str:
+    logs: list[tuple[str, ...]] = []
+    alerts: list[str] = []
+    metrics: list[str] = []
+    for item in items:
+        file_path = str(item.path)
+        if item.source == "alert":
+            alerts.append(file_path)
+        elif item.source == "metrics":
+            metrics.append(file_path)
+        elif item.client is None:
+            logs.append((item.source, file_path))
+        else:
+            logs.append((item.source, file_path, item.client))
+    case_id = ingest(
+        logs,
+        alert=alerts[0] if alerts else None,
+        metrics=metrics[0] if metrics else None,
+    )
+    for file_path in alerts[1:]:
+        case_id = ingest([], case_id=case_id, alert=file_path)
+    for file_path in metrics[1:]:
+        case_id = ingest([], case_id=case_id, metrics=file_path)
+    return case_id
+
+
+def _cause_text(text: str, case_id: str) -> str:
+    lines = text.splitlines()
+    if lines and lines[0] == f"case {case_id}":
+        lines = lines[1:]
+    body = "\n".join(lines).strip("\n")
+    tail = f"case {case_id}\nreport.md\n"
+    if not body:
+        return tail
+    return f"{body}\n{tail}"
 
 
 def _cmd_ingest(args: argparse.Namespace) -> int:
