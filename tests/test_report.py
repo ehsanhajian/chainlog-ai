@@ -187,6 +187,56 @@ def test_the_pattern_note_names_an_earlier_case(home: Path) -> None:
     assert "version geth unknown" in markdown
 
 
+def test_a_bundle_hashes_the_redacted_citations_and_the_signature(home: Path) -> None:
+    _ingest_incident()
+    code, stdout, stderr = run("report", "--case", "incident", "--bundle")
+    assert code == 0, stderr
+    assert stdout == "case incident\nreport.md\nreport.json\nbundle\n"
+    bundle = case_file("incident").parent / "bundle"
+    citations = json.loads((bundle / "citations.json").read_text(encoding="utf-8"))
+    signature = json.loads((bundle / "signature.json").read_text(encoding="utf-8"))
+    stored = {event.path for event in load_case("incident").events}
+    blob = (bundle / "citations.json").read_text(encoding="utf-8") + (bundle / "signature.json").read_text(encoding="utf-8")
+    for path in stored:
+        assert path not in blob
+    assert "hunter2" not in blob
+    assert "abandon abandon" not in blob
+    assert isinstance(citations["citations"], list)
+    assert citations["citations"]
+    assert all("path" not in item for item in citations["citations"])
+    assert any(item["role"] == "critical" and item["class"] == "doppelganger" for item in citations["citations"])
+    assert any(item["role"] == "trigger" and item["class"] == "node-not-ready" for item in citations["citations"])
+    assert "streams" in signature
+    assert all("excerpt" not in stream and "path" not in stream for stream in signature["streams"])
+    assert "leveldb" not in (bundle / "signature.json").read_text(encoding="utf-8")
+    code, stdout, stderr = run("report", "--verify", str(bundle))
+    assert code == 0, stderr
+    assert stdout == "match\n"
+    citations_path = bundle / "citations.json"
+    original = citations_path.read_text(encoding="utf-8")
+    citations_path.write_text(original.replace("node-not-ready", "node-ready"), encoding="utf-8")
+    code, stdout, stderr = run("report", "--verify", str(bundle))
+    assert code == 1, stderr
+    assert stdout == "mismatch\n"
+    citations_path.write_text(original, encoding="utf-8")
+    signature_path = bundle / "signature.json"
+    signature_path.write_text(signature_path.read_text(encoding="utf-8").replace("lighthouse", "prysm"), encoding="utf-8")
+    code, stdout, stderr = run("report", "--verify", str(bundle))
+    assert code == 1
+    assert stdout == "mismatch\n"
+
+
+def test_a_missing_bundle_is_a_usage_error(home: Path, tmp_path: Path) -> None:
+    code, stdout, stderr = run("report", "--verify", str(tmp_path / "missing-bundle"))
+    assert code == 3
+    assert stdout == ""
+    assert "cannot read bundle" in stderr
+    code, stdout, stderr = run("report", "--verify", str(tmp_path), "--case", "incident")
+    assert code == 3
+    assert stdout == ""
+    assert "report --verify checks a bundle" in stderr
+
+
 def test_an_unknown_case_is_a_usage_error(home: Path) -> None:
     code, stdout, stderr = run("report", "--case", "missing")
     assert code == 3

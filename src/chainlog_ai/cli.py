@@ -14,7 +14,7 @@ from chainlog_ai.case import CaseError, CaseNotFoundError, Event, case_window, l
 from chainlog_ai.classify import CatalogError, classify_case
 from chainlog_ai.ingest import SOURCES, InputError, ingest
 from chainlog_ai.patterns import SignatureError, find_patterns, match_signature, write_signature
-from chainlog_ai.report import ReportError, write_report
+from chainlog_ai.report import ReportError, verify_bundle, write_report
 from chainlog_ai.style import paint_redacted
 from chainlog_ai.timeline import TimelineError, render_timeline
 from chainlog_ai.why import explain
@@ -260,14 +260,26 @@ def build_parser() -> argparse.ArgumentParser:
             "Write markdown and JSON for a local case, next to the case. "
             "The report includes the cause, the timeline boundary, the citations, and the pattern note. "
             "A doppelganger or a slashable duty is the first section when the cause includes one. "
-            "--no-paths drops local file paths so the report can leave the machine."
+            "--no-paths drops local file paths so the report can leave the machine. "
+            "--bundle writes the redacted citations, the signature, and a hash of that content. "
+            "--verify checks that hash."
         ),
     )
-    report_parser.add_argument("--case", required=True, help="Case id printed by ingest")
+    report_parser.add_argument("--case", help="Case id printed by ingest")
     report_parser.add_argument(
         "--no-paths",
         action="store_true",
         help="Drop local file paths from the markdown and JSON.",
+    )
+    report_parser.add_argument(
+        "--bundle",
+        action="store_true",
+        help="Write bundle/ with the redacted citations, the signature, and a hash.",
+    )
+    report_parser.add_argument(
+        "--verify",
+        metavar="DIR",
+        help="Check the hash in a bundle directory. A mismatch is reported.",
     )
     report_parser.set_defaults(func=_cmd_report)
     return parser
@@ -540,15 +552,35 @@ def _cmd_patterns(args: argparse.Namespace) -> int:
 
 
 def _cmd_report(args: argparse.Namespace) -> int:
+    if args.verify:
+        if args.case or args.bundle or args.no_paths:
+            print("report --verify checks a bundle", file=sys.stderr)
+            return 3
+        try:
+            matched = verify_bundle(Path(args.verify))
+        except ReportError as exc:
+            print(exc, file=sys.stderr)
+            return 3
+        print("match" if matched else "mismatch")
+        return 0 if matched else 1
+    if not args.case:
+        print("report needs a case id", file=sys.stderr)
+        return 3
     try:
-        _markdown_path, _json_path, stated = write_report(args.case, paths=not args.no_paths)
+        _markdown_path, _json_path, stated = write_report(
+            args.case,
+            paths=not args.no_paths,
+            bundle=args.bundle,
+        )
     except CaseNotFoundError as exc:
         print(exc, file=sys.stderr)
         return 3
-    except (CaseError, CatalogError, TimelineError, ReportError) as exc:
+    except (CaseError, CatalogError, TimelineError, SignatureError, ReportError) as exc:
         print(exc, file=sys.stderr)
         return 3
     print(f"case {args.case}")
     print("report.md")
     print("report.json")
+    if args.bundle:
+        print("bundle")
     return 0 if stated else 1
